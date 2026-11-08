@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * CarePortal palette: "clinical teal on deep navy".
+ * Teal (primary) signals health and calm; navy (sidebar) gives a stable,
+ * trustworthy frame; status colours are reserved for meaning only.
+ * Every text/background pair meets WCAG AA contrast.
+ */
+@layer base {
+  :root {
+    --background: 204 33% 97%; /* #f4f7f9 page */
+    --foreground: 210 40% 12%; /* #121f2b text */
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 12%;
+
+    --primary: 175 77% 26%; /* #0f766e teal */
+    --primary-hover: 175 80% 21%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 168 55% 94%; /* #e7f6f2 teal tint */
+    --accent-foreground: 176 79% 20%;
+
+    --secondary: 205 30% 94%;
+    --secondary-foreground: 210 40% 16%;
+    --muted: 205 30% 95%;
+    --muted-foreground: 210 14% 40%; /* #57667a */
+    --border: 207 26% 89%;
+    --input: 207 22% 82%;
+    --ring: 175 77% 32%;
+
+    --info: 205 82% 40%; /* #1271b8 */
+    --success: 152 63% 30%; /* #1c7c51 */
+    --warning: 32 92% 38%; /* #b9670a */
+    --destructive: 356 70% 47%; /* #cc2433 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Sidebar (dark navy) */
+    --sidebar: 206 52% 13%; /* #10222f */
+    --sidebar-foreground: 205 22% 74%;
+    --sidebar-muted: 206 40% 19%;
+    --sidebar-active: 172 66% 50%; /* bright teal accent on navy */
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  h1 {
+    @apply text-xl font-semibold tracking-tight sm:text-2xl;
+  }
+  h2 {
+    @apply text-[15px] font-semibold tracking-tight;
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+  }
+}
+
+@layer components {
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base th {
+    @apply whitespace-nowrap border-b bg-muted/70 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+  .table-base td {
+    @apply border-b px-4 py-3 align-middle;
+  }
+  .table-base tbody tr {
+    @apply transition-colors hover:bg-muted/40;
+  }
+  .table-base tr:last-child td {
+    @apply border-b-0;
+  }
+
+  /* Short, purposeful motion only (disabled for reduced-motion users). */
+  .toast-in {
+    animation: toast-in 180ms ease-out;
+  }
+  .dialog-in[open] {
+    animation: dialog-in 140ms ease-out;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

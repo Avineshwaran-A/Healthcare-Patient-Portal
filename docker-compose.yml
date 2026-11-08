@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hcpp
+      POSTGRES_USER: hcpp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hcpp -d hcpp"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      HCPP_ENVIRONMENT: ${HCPP_ENVIRONMENT:-development}
+      HCPP_DATABASE_URL: postgresql+psycopg://hcpp:${POSTGRES_PASSWORD}@db:5432/hcpp
+      HCPP_JWT_SECRET: ${HCPP_JWT_SECRET:?set HCPP_JWT_SECRET in .env}
+      HCPP_COOKIE_SECURE: ${HCPP_COOKIE_SECURE:-false}
+      HCPP_UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    # Not published: only the web container talks to the API.
+    expose: ["8000"]
+
+  web:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://api:8000
+    depends_on: [api]
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  uploads:
