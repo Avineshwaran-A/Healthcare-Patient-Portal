@@ -8,8 +8,11 @@ import {
   FlaskConical,
   LayoutDashboard,
   Menu,
+  Pill,
+  Receipt,
   Search,
   ShieldCheck,
+  Siren,
   Stethoscope,
   User,
   Users,
@@ -38,6 +41,9 @@ const ICONS: Record<NavIcon, typeof LayoutDashboard> = {
   users: Users,
   building: Building2,
   shield: ShieldCheck,
+  receipt: Receipt,
+  pill: Pill,
+  siren: Siren,
 };
 
 export function isActive(pathname: string, href: string, root: string) {

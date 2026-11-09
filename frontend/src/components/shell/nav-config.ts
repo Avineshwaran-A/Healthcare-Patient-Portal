@@ -12,7 +12,10 @@ export type NavIcon =
   | "stethoscope"
   | "users"
   | "building"
-  | "shield";
+  | "shield"
+  | "receipt"
+  | "pill"
+  | "siren";
 
 export interface NavItem {
   href: string;
@@ -32,16 +35,27 @@ export const NAV: Record<Role, NavItem[]> = {
   doctor: [
     { href: "/doctor", label: "Today", icon: "home" },
     { href: "/doctor/appointments", label: "Schedule", icon: "calendar" },
-    { href: "/doctor/labs", label: "Lab requests", icon: "flask" },
+    { href: "/doctor/labs", label: "Lab results", icon: "flask" },
     { href: "/doctor/availability", label: "Availability", icon: "clock" },
+    { href: "/doctor/emergency", label: "Emergency access", icon: "siren" },
+  ],
+  lab: [
+    { href: "/lab", label: "Work queue", icon: "flask" },
+    { href: "/lab/completed", label: "Verified results", icon: "file" },
+  ],
+  billing: [
+    { href: "/billing", label: "Overview", icon: "home" },
+    { href: "/billing/invoices", label: "Invoices", icon: "receipt" },
+    { href: "/billing/patients", label: "Patients & insurance", icon: "users" },
+    { href: "/billing/claims", label: "Insurance claims", icon: "shield" },
+    { href: "/billing/prescriptions", label: "Fulfilment", icon: "pill" },
   ],
   admin: [
     { href: "/admin", label: "Overview", icon: "home" },
     { href: "/admin/doctors", label: "Doctors", icon: "stethoscope" },
-    { href: "/admin/users", label: "Users", icon: "users" },
+    { href: "/admin/users", label: "Users & staff", icon: "users" },
     { href: "/admin/departments", label: "Departments", icon: "building" },
     { href: "/admin/appointments", label: "Appointments", icon: "calendar" },
-    { href: "/admin/billing", label: "Billing", icon: "wallet" },
     { href: "/admin/audit", label: "Audit log", icon: "shield" },
   ],
 };
@@ -49,5 +63,7 @@ export const NAV: Record<Role, NavItem[]> = {
 export const ROLE_LABEL: Record<Role, string> = {
   patient: "Patient",
   doctor: "Doctor",
+  lab: "Lab technician",
+  billing: "Billing & insurance",
   admin: "Administrator",
 };

@@ -32,7 +32,7 @@ export default async function PatientHome() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Upcoming visits" value={upcoming.total} icon={<CalendarClock className="h-5 w-5" />} tone="primary" />
         <StatCard label="Prescriptions" value={rx.length} icon={<Pill className="h-5 w-5" />} tone="info" />
-        <StatCard label="Pending lab results" value={labs.filter((l) => l.status === "requested").length} icon={<FlaskConical className="h-5 w-5" />} tone="warning" />
+        <StatCard label="Pending lab results" value={labs.filter((l) => l.status !== "completed").length} icon={<FlaskConical className="h-5 w-5" />} tone="warning" />
         <StatCard label="Amount due" value={inr(due)} hint={`${unpaid.length} unpaid invoice(s)`} icon={<IndianRupee className="h-5 w-5" />} tone={due > 0 ? "danger" : "success"} />
       </div>
 

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { LabList, PrescriptionList, RecordList } from "@/components/clinical";
 import { Tabs } from "@/components/tabs";
 import { Alert, Card, CardBody, CardHeader, StatusBadge } from "@/components/ui";
-import { serverApi } from "@/lib/server-api";
+import { getMe, serverApi } from "@/lib/server-api";
 import { fmtDate, fmtDateTime, fmtTime } from "@/lib/utils";
 import type { Appointment, PatientHistory } from "@/types/api";
 
+import { AmendRecordButton } from "../../amend-record";
 import { ConsultationForm } from "./consultation-form";
 import { StatusActions } from "./status-actions";
 
@@ -21,7 +22,7 @@ function age(dob: string | null) {
 export default async function DoctorAppointmentPage({ params, searchParams }: { params: { id: string }; searchParams: { tab?: string } }) {
   const appt = await serverApi<Appointment>(`/appointments/${Number(params.id)}`);
   // Access is audited server-side and only allowed with a treatment relationship.
-  const h = await serverApi<PatientHistory>(`/doctor/patients/${appt.patient.id}/history`);
+  const [h, me] = await Promise.all([serverApi<PatientHistory>(`/doctor/patients/${appt.patient.id}/history`), getMe()]);
   const p = h.patient;
   const tab = ["prescriptions", "labs"].includes(searchParams.tab ?? "") ? searchParams.tab! : "notes";
   const visitDay = appt.start_at.slice(0, 10);
@@ -95,7 +96,9 @@ export default async function DoctorAppointmentPage({ params, searchParams }: { 
                 { value: "labs", label: `Labs (${h.labs.length})` },
               ]}
             />
-            {tab === "notes" && <RecordList records={h.records} />}
+            {tab === "notes" && (
+              <RecordList records={h.records} actions={(r) => (r.doctor_id === me?.doctor_id ? <AmendRecordButton record={r} /> : null)} />
+            )}
             {tab === "prescriptions" && <PrescriptionList prescriptions={h.prescriptions} />}
             {tab === "labs" && <LabList labs={h.labs} />}
           </section>

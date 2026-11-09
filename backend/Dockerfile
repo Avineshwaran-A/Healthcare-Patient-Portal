@@ -14,5 +14,7 @@ RUN useradd --create-home appuser && mkdir -p /data/uploads && chown appuser /da
 USER appuser
 
 EXPOSE 8000
-# Apply migrations, then serve. Seeding is a separate, explicit step.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+# Apply migrations, then serve with WEB_CONCURRENCY worker processes (default 2).
+# Seeding is a separate, explicit step.
+ENV WEB_CONCURRENCY=2
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY} --proxy-headers --forwarded-allow-ips='*'"]

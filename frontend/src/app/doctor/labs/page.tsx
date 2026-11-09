@@ -6,25 +6,26 @@ import { PageHeader } from "@/components/ui";
 import { serverApi } from "@/lib/server-api";
 import type { LabReport } from "@/types/api";
 
-import { LabResultForm } from "./lab-result-form";
-
-export const metadata: Metadata = { title: "Lab requests" };
+export const metadata: Metadata = { title: "Lab results" };
 
 export default async function DoctorLabs({ searchParams }: { searchParams: { tab?: string } }) {
-  const tab = searchParams.tab === "completed" ? "completed" : "requested";
+  const tab = searchParams.tab === "completed" ? "completed" : "pending";
   const labs = await serverApi<LabReport[]>(`/doctor/labs?status=${tab}`);
   return (
     <>
-      <PageHeader title="Lab requests" description="Record results for tests you requested. Patients are notified when a result is added." />
+      <PageHeader
+        title="Lab results"
+        description="Tests you requested. The laboratory enters and verifies results; you are notified when one is released."
+      />
       <Tabs
         basePath="/doctor/labs"
         current={tab}
         tabs={[
-          { value: "requested", label: "Pending" },
-          { value: "completed", label: "Completed" },
+          { value: "pending", label: "In the lab" },
+          { value: "completed", label: "Verified" },
         ]}
       />
-      <LabList labs={labs} showPatient>{(l) => (l.status === "requested" ? <LabResultForm labId={l.id} /> : null)}</LabList>
+      <LabList labs={labs} showPatient />
     </>
   );
 }

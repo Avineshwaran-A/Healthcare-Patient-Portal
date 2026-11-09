@@ -1,6 +1,6 @@
-# CarePortal: Healthcare Patient Portal
+# Healthcareportal: Healthcare Patient Portal
 
-A lightweight, full-stack healthcare portal with three role-based workspaces (patient, doctor, administrator).
+A lightweight, full-stack healthcare portal with five role-based workspaces: patient, doctor, lab technician, billing and insurance, and hospital administrator.
 
 > Uses **synthetic data only**. It is not a clinically validated system, gives no diagnoses or treatment advice, and has **not** been assessed for compliance with DPDP Act 2023, ABDM or any other regulation.
 
@@ -36,8 +36,9 @@ backend/app/
                notifications, audit_logs)
   schemas.py   Pydantic request/response models
   deps.py      auth + role dependencies
-  services/    business logic: scheduling, clinical, files, notifications, audit
-  routers/     thin HTTP layer: auth, catalog, patients, appointments, doctor, notifications, admin
+  core/permissions.py  role -> permission map (the single source of truth for access)
+  services/    business logic: scheduling, clinical, lab, files, notifications, audit
+  routers/     thin HTTP layer: auth, catalog, patients, appointments, doctor, lab, billing, notifications, admin
   seed.py      synthetic demo data
 alembic/       migrations
 tests/         pytest: auth, RBAC, workflows
@@ -45,8 +46,10 @@ tests/         pytest: auth, RBAC, workflows
 frontend/src/
   app/(auth)   sign-in and registration
   app/patient  overview, find doctor, booking, appointments, records, billing, profile
-  app/doctor   today, schedule, consultation (+prescription, lab requests), labs, availability
-  app/admin    stats, doctors (approve, fees, schedules), users, departments, appointments, billing, audit
+  app/doctor   today, schedule, consultation (+prescription, lab requests, follow-up), note amendments, lab results, availability, emergency access
+  app/lab      work queue, order detail (collect, enter result, verify, amend), verified results
+  app/billing  overview, invoices and payments, patients and insurance, insurance claims, prescription fulfilment
+  app/admin    stats, doctors (approve, fees, schedules), users and staff (create, roles), departments, appointments, audit
   components/  ui primitives, app shell, shared clinical views
   lib/         API clients (browser + server), formatting helpers
   hooks/       useAction (mutation + server refresh)
@@ -57,6 +60,27 @@ frontend/src/
 - **Double-booking protection in the database.** A partial unique index on `(doctor_id, start_at) WHERE status <> 'cancelled'` stops double bookings. If two requests race for one slot, one gets HTTP 409. Slots are also checked against the doctor's weekly availability.
 - **Treatment relationship.** A doctor can see a patient's history only if they have a non-cancelled appointment with that patient. Each such view is written to the audit log.
 - **Hospital wall-clock time.** Appointment times are stored as naive datetimes in `HCPP_TIMEZONE` (default Asia/Kolkata). This is simple for a single-site hospital. A multi-timezone deployment would need tz-aware columns.
+
+## Roles and access
+
+Every endpoint is guarded by a *permission* (`require_perm`), never by a role name. The map from role to permissions is in `backend/app/core/permissions.py`. Ownership checks (own records, treated patients, assigned lab orders) are applied on top of it in the services, and a request for someone else's record returns 404.
+
+| Role | Can | Cannot |
+| --- | --- | --- |
+| Patient | Own profile, appointments (book, reschedule, cancel), records, prescriptions with fulfilment status, verified lab results, invoices, insurance and claims | See anyone else's data; edit clinical, lab, invoice or insurance records |
+| Doctor | Schedule; history of patients they have an appointment with; write and amend **own** notes (reason required); prescriptions; lab requests; follow-up recommendations; read verified lab results; emergency access | Edit demographics, invoices, claims, lab results or another doctor's notes; see unrelated patients except via emergency access |
+| Lab technician | Claim orders from a shared queue; see minimum patient identity (Patient ID, name, date of birth, sex); record sample status; enter results and files; verify; amend verified results with a reason | Diagnoses, prescriptions, notes, demographics, billing; orders assigned to someone else |
+| Billing and insurance | Invoices (create, record payment, void with reason); patient identity, contact and insurance; claims; prescription fulfilment status | Any clinical content: notes, diagnoses, lab results. Changing medicines, doses or instructions. Editing a paid or void invoice |
+| Administrator | Staff accounts (create, enable, disable, change role); doctor approval and settings; departments; appointment oversight (confirm or cancel); stats; audit log | Clinical detail (visit reasons are hidden); completing visits; lab results; prescriptions; invoices and payments; deleting audit entries |
+
+Rules that apply to every role:
+- **Results are released by the lab.** A result is visible to the doctor and patient only after the lab technician verifies it. After that it can change only through an amendment with a reason.
+- **Paid and void invoices are final.**
+- **Emergency access needs a reason.** A doctor opening an unrelated patient's history must give a reason of at least 15 characters. Each use is audited and every administrator is notified.
+- **Notifications are generic.** They never include test names, results or diagnoses.
+- **Patient ID.** Each patient has one ID (`PT-000123`), derived from the unique patient key.
+
+All of these rules have API tests in `backend/tests/test_access_control.py`.
 
 ## Running locally
 
@@ -87,7 +111,7 @@ cd backend && .venv/bin/uvicorn app.main:app --port 8000
 cd frontend && npm install && npm run dev
 ```
 
-The demo accounts and their shared password are documented at the top of `backend/app/seed.py`. These include an admin, five doctors, one doctor pending approval, and three patients.
+The demo accounts and their shared password are documented at the top of `backend/app/seed.py`. These include an admin, five doctors, one doctor pending approval, two lab technicians, one billing user and three patients. On an existing development database, `python -m app.seed` adds only the demo staff accounts that are missing. It does nothing in production.
 
 ### Tests
 ```bash
@@ -106,11 +130,21 @@ cd frontend && npx playwright install chromium && npm run test:e2e
 - API responses use `Cache-Control: no-store` and are sent with nosniff, frame-deny and referrer headers. Stack traces are never returned to clients.
 - The audit log covers logins, bookings, status changes, record views and creation, lab downloads and admin actions. Clinical text is never logged.
 - Production mode will not start with the default JWT secret or with insecure cookies.
+- Lab files can be downloaded only by: the technician assigned to the order; or, once the result is verified, the patient, the requesting doctor or a treating doctor.
+
+## Scaling
+The portal is sized for a single hospital with 1,000+ users:
+- Pages render on the server, and the browser loads about 87 kB of shared JavaScript.
+- Every list is paginated and the filtered columns are indexed.
+- Permission checks run in memory and need no database query.
+- `WEB_CONCURRENCY` (default 2) sets the number of API worker processes. `HCPP_DB_POOL_SIZE` and `HCPP_DB_MAX_OVERFLOW` (default 10 + 10) set connections per worker. Keep workers × (pool + overflow) below PostgreSQL's `max_connections`.
 
 ## Known limitations / next steps
-- The login rate limiter keeps its state in process memory. With multiple API replicas it should move to a shared store such as Redis or PostgreSQL. Behind the Next.js proxy, the API sees the client IP via `X-Forwarded-For`.
+- The login rate limiter keeps its state in process memory, so with several workers or replicas each one counts attempts separately. With multiple API replicas it should move to a shared store such as Redis or PostgreSQL. Behind the Next.js proxy, the API sees the client IP via `X-Forwarded-For`.
 - There is no online payment. Admins record payments that were taken at the desk.
 - Notifications are in-app only. Email and SMS can be added in `services/notifications.py`.
 - "Manage user permissions" is currently limited to enabling and disabling accounts and approving doctors. There is no fine-grained permission editor yet.
 - HTTPS termination (for example Caddy or Nginx in front of `web`) is not included in the compose file.
-- There is no password reset or MFA yet.
+- There is no password reset or MFA yet. Staff accounts start with a temporary password set by an administrator, and there is no forced change at first sign-in.
+- The same technician can enter and verify a result. A two-person rule (a different verifier) would be a one-line check in `services/lab.py`.
+- Each invoice records one full payment. There are no partial payments or refunds.

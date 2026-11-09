@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 
 import { Toaster } from "@/components/toaster";
 
 import "./globals.css";
 
-// Three voices, self-hosted at build time by next/font (no runtime request to Google).
-// Display: Fraunces (variable serif, optical size + softness axes) for headlines.
-// Sans: Instrument Sans for interface and body. Mono: JetBrains Mono for data and labels.
-const display = Fraunces({ subsets: ["latin"], display: "swap", variable: "--font-display", axes: ["opsz", "SOFT"], style: ["normal", "italic"] });
-const sans = Instrument_Sans({ subsets: ["latin"], display: "swap", variable: "--font-sans" });
-const mono = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" });
+// One typeface for the whole portal: Inter (variable, 400–600 used), self-hosted at build
+// time by next/font, so there is no runtime request to Google. Fallbacks live in tailwind.config.ts.
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: { default: "CarePortal – Healthcare Patient Portal", template: "%s · CarePortal" },
+  title: { default: "Healthcareportal – Healthcare Patient Portal", template: "%s · Healthcareportal" },
   description: "Book appointments, view prescriptions and lab reports, and manage hospital operations.",
   robots: { index: false, follow: false },
 };
@@ -25,7 +22,7 @@ const LOADER_GATE = `document.documentElement.dataset.js="1";try{if(sessionStora
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: LOADER_GATE }} />
         <noscript>

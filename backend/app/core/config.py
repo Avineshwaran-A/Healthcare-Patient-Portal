@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     # PostgreSQL in Docker/production, e.g. postgresql+psycopg://user:pass@db:5432/hcpp
     # SQLite is only a zero-setup fallback for local development and tests.
     database_url: str = "sqlite:///./hcpp_dev.db"
+    # Per API worker. Sync endpoints run in a thread pool, so size this to the expected
+    # concurrent requests per worker; keep workers × (pool + overflow) under Postgres max_connections.
+    db_pool_size: int = 10
+    db_max_overflow: int = 10
 
     jwt_secret: str = "dev-only-change-me-dev-only-change-me"
     jwt_algorithm: str = "HS256"

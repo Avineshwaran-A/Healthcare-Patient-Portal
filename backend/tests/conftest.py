@@ -30,6 +30,9 @@ def fresh_db():
     dep = Department(name="General Medicine")
     db.add(dep)
     db.add(User(email="admin@example.com", password_hash=pw, full_name="Admin", role=Role.admin))
+    db.add(User(email="lab1@example.com", password_hash=pw, full_name="Lab One", role=Role.lab))
+    db.add(User(email="lab2@example.com", password_hash=pw, full_name="Lab Two", role=Role.lab))
+    db.add(User(email="billing@example.com", password_hash=pw, full_name="Billing", role=Role.billing))
     for i, email in enumerate(["doc1@example.com", "doc2@example.com"]):
         u = User(email=email, password_hash=pw, full_name=f"Doctor {i + 1}", role=Role.doctor)
         u.doctor = Doctor(
@@ -103,3 +106,18 @@ def future_slot(days: int = 1, hour: int = 10) -> str:
 def doctor_id(client, n: int = 1) -> int:
     items = client.get("/api/doctors").json()["items"]
     return next(d["id"] for d in items if d["full_name"] == f"Doctor {n}")
+
+
+@pytest.fixture
+def lab():
+    return login("lab1@example.com")
+
+
+@pytest.fixture
+def lab2():
+    return login("lab2@example.com")
+
+
+@pytest.fixture
+def billing():
+    return login("billing@example.com")

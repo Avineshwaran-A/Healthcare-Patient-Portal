@@ -162,7 +162,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
         badgeVariants[variant][tone],
         className,
       )}
@@ -183,7 +183,22 @@ export const STATUS: Record<string, { tone: Tone; label: string }> = {
   completed: { tone: "success", label: "Completed" },
   cancelled: { tone: "neutral", label: "Cancelled" },
   no_show: { tone: "warning", label: "Missed" },
-  requested: { tone: "warning", label: "Pending" },
+  requested: { tone: "warning", label: "Requested" },
+  // lab orders (completed = verified and released)
+  collected: { tone: "info", label: "Sample collected" },
+  processing: { tone: "info", label: "Processing" },
+  resulted: { tone: "primary", label: "Awaiting verification" },
+  // prescription fulfilment
+  ready: { tone: "primary", label: "Ready" },
+  dispensed: { tone: "success", label: "Dispensed" },
+  unavailable: { tone: "danger", label: "Out of stock" },
+  // insurance and claims
+  unverified: { tone: "warning", label: "Unverified" },
+  verified: { tone: "success", label: "Verified" },
+  rejected: { tone: "danger", label: "Rejected" },
+  submitted: { tone: "info", label: "Submitted" },
+  approved: { tone: "primary", label: "Approved" },
+  settled: { tone: "success", label: "Settled" },
   // billing
   unpaid: { tone: "warning", label: "Unpaid" },
   paid: { tone: "success", label: "Paid" },
@@ -195,7 +210,7 @@ export const STATUS: Record<string, { tone: Tone; label: string }> = {
   pending: { tone: "warning", label: "Pending" },
 };
 
-export const ROLE_TONE: Record<string, Tone> = { patient: "info", doctor: "primary", admin: "neutral" };
+export const ROLE_TONE: Record<string, Tone> = { patient: "info", doctor: "primary", lab: "warning", billing: "success", admin: "neutral" };
 
 export function StatusBadge({ status, variant }: { status: string; variant?: BadgeVariant }) {
   const s = STATUS[status] ?? { tone: "neutral" as Tone, label: status };
@@ -268,7 +283,7 @@ export function StatCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 font-display text-3xl font-normal tracking-tight tabular-nums sm:text-[2.125rem]">{value}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums sm:text-[1.875rem]">{value}</p>
         </div>
         {icon && <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tileTones[tone])}>{icon}</span>}
       </div>

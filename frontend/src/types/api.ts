@@ -1,6 +1,9 @@
-export type Role = "patient" | "doctor" | "admin";
+export type Role = "patient" | "doctor" | "lab" | "billing" | "admin";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
-export type LabStatus = "requested" | "completed";
+export type LabStatus = "requested" | "collected" | "processing" | "resulted" | "completed";
+export type FulfilmentStatus = "pending" | "ready" | "dispensed" | "unavailable";
+export type InsuranceStatus = "unverified" | "verified" | "rejected";
+export type ClaimStatus = "submitted" | "approved" | "rejected" | "settled";
 export type InvoiceStatus = "unpaid" | "paid" | "void";
 
 export interface Page<T> {
@@ -20,6 +23,7 @@ export interface Me {
   created_at: string;
   patient_id: number | null;
   doctor_id: number | null;
+  permissions: string[];
 }
 
 export interface Department {
@@ -71,6 +75,7 @@ export interface Appointment {
 
 export interface PatientProfile {
   id: number;
+  patient_code: string;
   email: string;
   full_name: string;
   phone: string | null;
@@ -80,16 +85,23 @@ export interface PatientProfile {
   address: string | null;
   emergency_contact: string | null;
   allergies: string | null;
+  insurer: string | null;
+  policy_number: string | null;
+  insurance_status: InsuranceStatus;
 }
 
 export interface MedicalRecord {
   id: number;
   appointment_id: number | null;
+  doctor_id: number;
   doctor_name: string;
   chief_complaint: string | null;
   assessment: string | null;
   notes: string;
+  follow_up_date: string | null;
   created_at: string;
+  amended_at: string | null;
+  amendment_reason: string | null;
 }
 
 export interface RxItem {
@@ -108,20 +120,48 @@ export interface Prescription {
   notes: string | null;
   created_at: string;
   items: RxItem[];
+  fulfilment_status: FulfilmentStatus;
+  fulfilment_note: string | null;
+  fulfilment_updated_at: string | null;
+}
+
+export interface FulfilmentRow extends Prescription {
+  patient_name: string;
+  patient_code: string;
 }
 
 export interface LabReport {
   id: number;
   appointment_id: number | null;
   doctor_name: string;
+  patient_id: number;
+  patient_code: string;
   patient_name: string;
   test_name: string;
   status: LabStatus;
+  assigned_to: string | null;
+  assigned_to_id: number | null;
   result_summary: string | null;
   has_file: boolean;
   file_name: string | null;
   requested_at: string;
+  collected_at: string | null;
   completed_at: string | null;
+  amended_at: string | null;
+  amendment_reason: string | null;
+}
+
+export interface LabOrderDetail {
+  order: LabReport;
+  patient: { id: number; patient_code: string; full_name: string; date_of_birth: string | null; gender: string | null };
+  history: LabReport[];
+}
+
+export interface LabSummary {
+  queue: number;
+  mine_active: number;
+  awaiting_verification: number;
+  verified_today: number;
 }
 
 export interface PatientHistory {
@@ -134,12 +174,52 @@ export interface PatientHistory {
 export interface Invoice {
   id: number;
   appointment_id: number | null;
+  patient_id: number;
+  patient_code: string;
   patient_name: string;
   description: string;
   amount: string;
   status: InvoiceStatus;
   issued_at: string;
   paid_at: string | null;
+  payment_method: string | null;
+  payment_reference: string | null;
+  note: string | null;
+}
+
+export interface BillingPatient {
+  id: number;
+  patient_code: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  insurer: string | null;
+  policy_number: string | null;
+  insurance_status: InsuranceStatus;
+}
+
+export interface Claim {
+  id: number;
+  invoice_id: number;
+  patient_id: number;
+  patient_code: string;
+  patient_name: string;
+  insurer: string;
+  policy_number: string;
+  amount_claimed: string;
+  amount_approved: string | null;
+  status: ClaimStatus;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BillingSummary {
+  unpaid_count: number;
+  unpaid_total: string;
+  collected_today: string;
+  open_claims: number;
+  pending_fulfilment: number;
 }
 
 export interface Notification {

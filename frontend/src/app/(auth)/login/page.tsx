@@ -17,7 +17,7 @@ export default async function LoginPage() {
       <CardBody className="space-y-5">
         <div>
           <h1>Sign in</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Patients, doctors and administrators use the same sign-in.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Patients and all hospital staff use the same sign-in.</p>
         </div>
         <LoginForm />
         <p className="text-center text-sm text-muted-foreground">

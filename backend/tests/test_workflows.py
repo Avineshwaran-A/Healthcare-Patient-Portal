@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from app.db import SessionLocal
 from app.models import Appointment
@@ -127,17 +127,8 @@ def test_consultation_workflow(patient, doctor, doctor2):
     inv = patient.get("/api/patients/me/invoices").json()
     assert len(inv) == 1 and inv[0]["status"] == "unpaid"
 
-    # lab upload: validates file type by content
-    lab_id = labs[0]["id"]
-    bad = doctor.post(f"/api/doctor/labs/{lab_id}/result", data={"summary": "ok"}, files={"file": ("x.pdf", b"MZ\x90evil", "application/pdf")})
-    assert bad.status_code == 415
-    good = doctor.post(
-        f"/api/doctor/labs/{lab_id}/result", data={"summary": "Normal"}, files={"file": ("../../r.pdf", b"%PDF-1.4 demo", "application/pdf")}
-    )
-    assert good.status_code == 200 and good.json()["file_name"] == "r.pdf"
-    f = patient.get(f"/api/labs/{lab_id}/file")
-    assert f.status_code == 200 and f.content.startswith(b"%PDF")
-    assert doctor2.get(f"/api/labs/{lab_id}/file").status_code == 404
+    # results are entered by the lab, not by doctors (see test_access_control.py)
+    assert doctor.post(f"/api/doctor/labs/{labs[0]['id']}/result", data={"summary": "x"}).status_code in (404, 405)
 
 
 def test_audit_log_records_access(patient, doctor, admin):
@@ -159,15 +150,6 @@ def test_admin_departments_and_stats(admin, patient):
     _book(patient, doctor_id(patient))
     s = admin.get("/api/admin/stats").json()
     assert s["patients"] == 2 and s["doctors"] == 2 and s["appointments_upcoming"] == 1
-
-
-def test_admin_invoice_payment(admin, patient, doctor):
-    aid = _todays_appointment(patient)
-    doctor.patch(f"/api/appointments/{aid}/status", json={"status": "completed"})
-    inv = admin.get("/api/admin/invoices").json()["items"][0]
-    assert admin.patch(f"/api/admin/invoices/{inv['id']}", json={"status": "paid"}).json()["status"] == "paid"
-    assert admin.patch(f"/api/admin/invoices/{inv['id']}", json={"status": "void"}).status_code == 409
-    assert patient.get("/api/patients/me/invoices").json()[0]["status"] == "paid"
 
 
 def test_availability_overlap_rejected(doctor):

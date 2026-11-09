@@ -125,12 +125,12 @@ export function SiteMotion({ withLoader = false }: { withLoader?: boolean }) {
             <path data-ecg d={ECG_PATH} pathLength={1} strokeDasharray={1} strokeDashoffset={0} />
           </svg>
           <div className="overflow-hidden pb-1">
-            <p data-loader-mark className="font-display text-4xl font-light tracking-tight text-white sm:text-5xl">
-              Care<span className="em-serif text-mint">portal</span>
+            <p data-loader-mark className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+              Healthcare<span className="text-mint">portal</span>
             </p>
           </div>
         </div>
-        <p data-count className="label-mono absolute bottom-6 right-6 tabular text-sidebar-foreground/70 sm:bottom-8 sm:right-10">
+        <p data-count className="eyebrow absolute bottom-6 right-6 tabular text-sidebar-foreground/70 sm:bottom-8 sm:right-10">
           000
         </p>
       </div>

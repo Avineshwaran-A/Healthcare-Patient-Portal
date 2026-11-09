@@ -107,3 +107,90 @@ export function ConfirmButton({
     </>
   );
 }
+
+/**
+ * Button that opens a dialog containing a small form (reason, payment method, …).
+ * `onSubmit` receives the form's FormData; the dialog closes on success.
+ */
+export function FormDialogButton({
+  title,
+  description,
+  submitLabel = "Save",
+  onSubmit,
+  success,
+  fields,
+  children,
+  ...buttonProps
+}: Omit<ButtonProps, "onClick" | "title" | "onSubmit"> & {
+  title: string;
+  description?: string;
+  submitLabel?: string;
+  onSubmit: (form: FormData) => Promise<unknown>;
+  success?: string;
+  fields: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+  const { run, pending, error, setError } = useAction();
+
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const ok = await run(() => onSubmit(form), { success, toastError: false });
+    if (ok !== undefined) setOpen(false);
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        {...buttonProps}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+      >
+        {children}
+      </Button>
+      <dialog
+        ref={ref}
+        onClose={() => setOpen(false)}
+        onClick={(e) => e.target === ref.current && !pending && setOpen(false)}
+        className="dialog-in w-[calc(100%-2rem)] max-w-md whitespace-normal rounded-xl border bg-card p-0 text-left font-normal normal-case tracking-normal text-card-foreground shadow-xl backdrop:bg-slate-950/50"
+        aria-labelledby="form-dialog-title"
+      >
+        {open && (
+          <form onSubmit={submit} className="space-y-4 p-5">
+            <div>
+              <h2 id="form-dialog-title" className="text-base font-semibold">
+                {title}
+              </h2>
+              {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+            </div>
+            <div className="space-y-3">{fields}</div>
+            {error && (
+              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+                Go back
+              </Button>
+              <Button type="submit" loading={pending}>
+                {submitLabel}
+              </Button>
+            </div>
+          </form>
+        )}
+      </dialog>
+    </>
+  );
+}

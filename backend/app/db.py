@@ -14,6 +14,9 @@ def make_engine(url: str):
     kwargs: dict = {"pool_pre_ping": True}
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        s = get_settings()
+        kwargs.update(pool_size=s.db_pool_size, max_overflow=s.db_max_overflow, pool_recycle=1800)
     engine = create_engine(url, **kwargs)
     if url.startswith("sqlite"):
 

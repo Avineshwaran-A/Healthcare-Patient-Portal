@@ -47,36 +47,6 @@ export function ToggleUserButton({ userId, active, name }: { userId: number; act
   );
 }
 
-export function InvoiceActions({ id, amount }: { id: number; amount: string }) {
-  return (
-    <div className="flex justify-end gap-2">
-      <ConfirmButton
-        size="sm"
-        variant="outline"
-        tone="default"
-        title={`Record payment for invoice #${id}?`}
-        description={`Marks ${amount} as received at the billing desk. The patient will be notified.`}
-        confirmLabel="Mark as paid"
-        success="Payment recorded"
-        action={() => api(`/admin/invoices/${id}`, { method: "PATCH", json: { status: "paid" } })}
-      >
-        Mark paid
-      </ConfirmButton>
-      <ConfirmButton
-        size="sm"
-        variant="ghost"
-        title={`Void invoice #${id}?`}
-        description="A voided invoice can't be paid or reopened."
-        confirmLabel="Void invoice"
-        success="Invoice voided"
-        action={() => api(`/admin/invoices/${id}`, { method: "PATCH", json: { status: "void" } })}
-      >
-        Void
-      </ConfirmButton>
-    </div>
-  );
-}
-
 export function AdminCancelAppointment({ id, status }: { id: number; status: AppointmentStatus }) {
   if (status !== "scheduled" && status !== "confirmed") return null;
   return (

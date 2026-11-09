@@ -8,7 +8,7 @@ import { Card, EmptyState, StatusBadge } from "./ui";
 // Read-only clinical views shared by the patient workspace and the doctor's
 // patient-history panel.
 
-export function RecordList({ records }: { records: MedicalRecord[] }) {
+export function RecordList({ records, actions }: { records: MedicalRecord[]; actions?: (r: MedicalRecord) => React.ReactNode }) {
   if (!records.length) return <EmptyState icon={<FileText className="h-6 w-6" />} title="No consultation notes yet" />;
   return (
     <ul className="space-y-3">
@@ -28,6 +28,21 @@ export function RecordList({ records }: { records: MedicalRecord[] }) {
               </p>
             )}
             <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">{r.notes}</p>
+            {(r.follow_up_date || r.amended_at || actions) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3 text-xs text-muted-foreground">
+                {r.follow_up_date && (
+                  <span>
+                    <span className="font-medium text-foreground">Follow-up recommended</span> around {fmtDate(r.follow_up_date)}
+                  </span>
+                )}
+                {r.amended_at && (
+                  <span>
+                    Amended {fmtDate(r.amended_at)}: {r.amendment_reason}
+                  </span>
+                )}
+                <span className="ml-auto">{actions?.(r)}</span>
+              </div>
+            )}
           </Card>
         </li>
       ))}
@@ -43,7 +58,10 @@ export function PrescriptionList({ prescriptions }: { prescriptions: Prescriptio
         <li key={p.id}>
           <Card>
             <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
-              <p className="font-medium">Prescription #{p.id}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium">Prescription #{p.id}</p>
+                <StatusBadge status={p.fulfilment_status} variant="outline" />
+              </div>
               <p className="text-xs text-muted-foreground">
                 {p.doctor_name} · {fmtDate(p.created_at)}
               </p>
@@ -105,9 +123,14 @@ export function LabList({
               <p className="text-xs text-muted-foreground">
                 {showPatient && <span className="font-medium text-foreground">{l.patient_name} · </span>}
                 Requested by {l.doctor_name} · {fmtDate(l.requested_at)}
-                {l.completed_at && ` · Result ${fmtDate(l.completed_at)}`}
+                {l.status === "completed" && l.completed_at && ` · Verified ${fmtDate(l.completed_at)}`}
               </p>
-              {l.result_summary && <p className="mt-1 text-sm">{l.result_summary}</p>}
+              {l.result_summary ? (
+                <p className="mt-1 whitespace-pre-line text-sm">{l.result_summary}</p>
+              ) : (
+                l.status !== "completed" && <p className="mt-1 text-xs text-muted-foreground">Results appear here once the laboratory verifies them.</p>
+              )}
+              {l.amended_at && <p className="mt-1 text-xs text-muted-foreground">Amended {fmtDate(l.amended_at)}: {l.amendment_reason}</p>}
             </div>
             {l.has_file && (
               <a href={`/api/labs/${l.id}/file`} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">

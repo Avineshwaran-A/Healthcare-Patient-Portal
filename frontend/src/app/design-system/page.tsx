@@ -36,9 +36,9 @@ const COLORS: { group: string; items: { name: string; token: string; hex: string
 ];
 
 const TYPE = [
-  { name: "Display XL", cls: "display-xl", sample: "Care, booked", spec: "Fraunces Light · clamp 3.25–9rem · -0.035em" },
-  { name: "Display LG", cls: "display-lg", sample: "For doctors", spec: "Fraunces Light · clamp 2.5–5.5rem" },
-  { name: "Display MD", cls: "display-md", sample: "Three steps to booked", spec: "Fraunces Regular · clamp 1.75–2.75rem" },
+  { name: "Display XL", cls: "display-xl", sample: "Care, booked", spec: "Inter SemiBold · clamp 2.5–4.5rem" },
+  { name: "Display LG", cls: "display-lg", sample: "For doctors", spec: "Inter SemiBold · clamp 2–3.25rem" },
+  { name: "Display MD", cls: "display-md", sample: "Three steps to booked", spec: "Inter SemiBold · clamp 1.5–2rem" },
 ];
 
 const VARIANTS: BadgeVariant[] = ["soft", "solid", "outline"];
@@ -48,7 +48,7 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   return (
     <section className="border-t py-12">
       <div className="mb-8 max-w-2xl">
-        <h2 className="font-display text-3xl font-normal tracking-tight">{title}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
         {note && <p className="mt-2 text-muted-foreground">{note}</p>}
       </div>
       {children}
@@ -61,11 +61,11 @@ export default function DesignSystem() {
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
       <header className="flex items-center justify-between">
         <Logo />
-        <span className="label-mono text-muted-foreground">Design system · v1</span>
+        <span className="eyebrow text-muted-foreground">Design system · v1</span>
       </header>
       <div className="py-16">
         <h1 className="display-lg">
-          One voice, <span className="em-serif text-primary">three typefaces.</span>
+          One typeface, <span className="text-primary">used consistently.</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
           Paper, ink and pine carry the interface. Coral marks the single action on a screen. Status colours carry meaning and nothing else.
@@ -76,14 +76,14 @@ export default function DesignSystem() {
         <div className="space-y-8">
           {COLORS.map((g) => (
             <div key={g.group}>
-              <p className="label-mono mb-3 text-muted-foreground">{g.group}</p>
+              <p className="eyebrow mb-3 text-muted-foreground">{g.group}</p>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {g.items.map((c) => (
                   <li key={c.name} className="overflow-hidden rounded-xl border bg-card">
                     <div className="h-20" style={{ background: c.hex }} />
                     <div className="p-3">
                       <p className="text-sm font-medium">{c.name}</p>
-                      <p className="font-mono text-xs text-muted-foreground">
+                      <p className="tabular text-xs text-muted-foreground">
                         {c.hex} · {c.token}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">{c.note}</p>
@@ -96,30 +96,30 @@ export default function DesignSystem() {
         </div>
       </Section>
 
-      <Section title="Typography" note="Fraunces speaks, Instrument Sans works, JetBrains Mono measures. Italic serif marks one word per headline.">
+      <Section title="Typography" note="Inter throughout. Weight sets the hierarchy: 600 headings, 500 labels, buttons and navigation, 400 body and data. Numbers use tabular figures.">
         <div className="space-y-8">
           {TYPE.map((t) => (
             <div key={t.name} className="grid gap-2 border-b pb-8 md:grid-cols-[12rem_1fr]">
               <div>
                 <p className="text-sm font-medium">{t.name}</p>
-                <p className="font-mono text-xs text-muted-foreground">{t.spec}</p>
+                <p className="tabular text-xs text-muted-foreground">{t.spec}</p>
               </div>
               <p className={t.cls}>{t.sample}</p>
             </div>
           ))}
           <div className="grid gap-2 border-b pb-8 md:grid-cols-[12rem_1fr]">
             <div>
-              <p className="text-sm font-medium">Italic emphasis</p>
-              <p className="font-mono text-xs text-muted-foreground">.em-serif</p>
+              <p className="text-sm font-medium">Colour emphasis</p>
+              <p className="tabular text-xs text-muted-foreground">text-primary on one phrase</p>
             </div>
             <p className="display-md">
-              Appointments, <span className="em-serif text-primary">simply</span> connected.
+              Appointments, <span className="text-primary">simply</span> connected.
             </p>
           </div>
           <div className="grid gap-2 border-b pb-8 md:grid-cols-[12rem_1fr]">
             <div>
               <p className="text-sm font-medium">Body</p>
-              <p className="font-mono text-xs text-muted-foreground">Instrument Sans · 15–18px</p>
+              <p className="tabular text-xs text-muted-foreground">Inter Regular · 16px</p>
             </div>
             <p className="max-w-prose text-base leading-relaxed">
               Prescriptions, consultation notes and lab reports sit in one timeline. Lines stay between 65 and 75 characters so long records remain readable.
@@ -128,9 +128,9 @@ export default function DesignSystem() {
           <div className="grid gap-2 md:grid-cols-[12rem_1fr]">
             <div>
               <p className="text-sm font-medium">Label / data</p>
-              <p className="font-mono text-xs text-muted-foreground">.label-mono · tabular numerals</p>
+              <p className="tabular text-xs text-muted-foreground">.eyebrow · Inter Medium 12px · tabular numerals</p>
             </div>
-            <p className="label-mono">Lab report · 29 SEP · 10:30</p>
+            <p className="eyebrow">Lab report · 29 SEP · 10:30</p>
           </div>
         </div>
       </Section>
@@ -139,7 +139,7 @@ export default function DesignSystem() {
         <div className="space-y-6">
           {VARIANTS.map((v) => (
             <div key={v} className="grid items-center gap-3 md:grid-cols-[8rem_1fr]">
-              <p className="label-mono text-muted-foreground">{v}</p>
+              <p className="eyebrow text-muted-foreground">{v}</p>
               <div className="flex flex-wrap gap-2">
                 {TONES.map((t) => (
                   <Badge key={t} tone={t} variant={v} dot>
@@ -150,7 +150,7 @@ export default function DesignSystem() {
             </div>
           ))}
           <div className="grid items-center gap-3 md:grid-cols-[8rem_1fr]">
-            <p className="label-mono text-muted-foreground">Status</p>
+            <p className="eyebrow text-muted-foreground">Status</p>
             <div className="flex flex-wrap gap-2">
               {Object.keys(STATUS).map((k) => (
                 <StatusBadge key={k} status={k} />
@@ -158,7 +158,7 @@ export default function DesignSystem() {
             </div>
           </div>
           <div className="grid items-center gap-3 md:grid-cols-[8rem_1fr]">
-            <p className="label-mono text-muted-foreground">Role</p>
+            <p className="eyebrow text-muted-foreground">Role</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(ROLE_TONE).map(([r, t]) => (
                 <Badge key={r} tone={t} variant="outline">
@@ -168,7 +168,7 @@ export default function DesignSystem() {
             </div>
           </div>
           <div className="grid items-center gap-3 md:grid-cols-[8rem_1fr]">
-            <p className="label-mono text-muted-foreground">With icon</p>
+            <p className="eyebrow text-muted-foreground">With icon</p>
             <div className="flex flex-wrap gap-2">
               <Badge tone="success" icon={<Check />}>Verified</Badge>
               <Badge tone="warning" icon={<Clock />}>Awaiting</Badge>
@@ -216,7 +216,7 @@ export default function DesignSystem() {
             ["Loader", "ECG line draws, counter runs, panels split. Once per session, landing only, ≤1.7s."],
           ].map(([k, v]) => (
             <div key={k} className="bg-card p-5">
-              <dt className="label-mono text-primary">{k}</dt>
+              <dt className="eyebrow text-primary">{k}</dt>
               <dd className="mt-2 text-sm text-muted-foreground">{v}</dd>
             </div>
           ))}

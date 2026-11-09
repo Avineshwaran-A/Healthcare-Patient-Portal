@@ -130,9 +130,7 @@ export default async function AdminHome() {
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-success" style={{ width: `${collectedPct}%` }} />
           </div>
-          <Link href="/admin/billing?status=unpaid" className="mt-3 inline-block text-xs font-medium text-primary hover:underline">
-            View unpaid invoices →
-          </Link>
+          <p className="mt-3 text-xs text-muted-foreground">Invoices and payments are managed by billing staff.</p>
         </Card>
       </div>
     </>

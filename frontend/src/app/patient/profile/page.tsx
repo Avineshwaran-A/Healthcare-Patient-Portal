@@ -12,7 +12,15 @@ export default async function ProfilePage() {
   const profile = await serverApi<PatientProfile>("/patients/me");
   return (
     <>
-      <PageHeader title="Profile" description="Keep your contact and health details up to date." />
+      <PageHeader
+        title="Profile"
+        description="Keep your contact and health details up to date."
+        action={
+          <p className="rounded-lg border bg-card px-3 py-1.5 text-sm">
+            Patient ID <span className="ml-1 font-semibold tabular-nums">{profile.patient_code}</span>
+          </p>
+        }
+      />
       <Card className="max-w-3xl">
         <CardBody>
           <ProfileForm profile={profile} />

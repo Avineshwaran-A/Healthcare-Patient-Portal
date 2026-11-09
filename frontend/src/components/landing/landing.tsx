@@ -21,7 +21,7 @@ function Window({ title, children, className }: { title: string; children: React
   return (
     <div className={cn("overflow-hidden rounded-xl border border-black/10 bg-card text-foreground shadow-lift", className)}>
       <div className="flex items-center justify-between border-b bg-muted/60 px-4 py-2.5">
-        <span className="label-mono text-muted-foreground">{title}</span>
+        <span className="eyebrow text-muted-foreground">{title}</span>
         <span className="flex gap-1.5" aria-hidden>
           <i className="h-2 w-2 rounded-full bg-border" />
           <i className="h-2 w-2 rounded-full bg-border" />
@@ -76,7 +76,7 @@ function DoctorMock() {
           ["10:15", "Karan Shah", "Lab review", "scheduled"],
         ].map(([t, name, kind, status]) => (
           <li key={t} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 px-4 py-3">
-            <span className="tabular font-mono text-xs text-muted-foreground">{t}</span>
+            <span className="tabular text-xs text-muted-foreground">{t}</span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{name}</p>
               <p className="text-xs text-muted-foreground">{kind}</p>
@@ -86,8 +86,8 @@ function DoctorMock() {
         ))}
       </ul>
       <div className="space-y-2 border-t bg-muted/40 px-4 py-3">
-        <p className="label-mono text-muted-foreground">Prescription</p>
-        <p className="font-mono text-xs">Paracetamol 500 mg · 1 tablet · twice daily · 3 days</p>
+        <p className="eyebrow text-muted-foreground">Prescription</p>
+        <p className="tabular text-xs">Paracetamol 500 mg · 1 tablet · twice daily · 3 days</p>
         <span className={buttonClass("default", "sm", "pointer-events-none")}>Save prescription</span>
       </div>
     </Window>
@@ -120,7 +120,7 @@ function AdminMock() {
           ))}
         </tbody>
       </table>
-      <div className="space-y-1.5 border-t bg-muted/40 px-4 py-3 font-mono text-[11px] text-muted-foreground">
+      <div className="space-y-1.5 border-t bg-muted/40 px-4 py-3 tabular text-[11px] text-muted-foreground">
         <p>
           <span className="text-foreground">10:42</span> doctor.view_history · dr.iyer → patient 0412
         </p>
@@ -163,7 +163,7 @@ function FlowPreview({ step }: { step: number }) {
                 <span
                   key={t}
                   className={cn(
-                    "tabular rounded-lg border px-3 py-2.5 text-center font-mono text-xs",
+                    "tabular rounded-lg border px-3 py-2.5 text-center tabular text-xs",
                     i === 3 && "border-primary bg-primary text-primary-foreground",
                     i === 1 && "border-dashed text-muted-foreground line-through",
                   )}
@@ -179,7 +179,7 @@ function FlowPreview({ step }: { step: number }) {
           <div className="flex h-full flex-col justify-between gap-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-display text-2xl">Tuesday 14 Oct, 10:30</p>
+                <p className="text-xl font-semibold">Tuesday 14 Oct, 10:30</p>
                 <p className="mt-1 text-sm text-muted-foreground">Dr. Meera Iyer · Cardiology</p>
               </div>
               <StatusBadge status="confirmed" />
@@ -324,7 +324,7 @@ export function Landing() {
     <div ref={root}>
       {/* Floating nav */}
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 py-4 sm:px-8">
-        <TransitionLink href="/" className="pointer-events-auto rounded-full bg-card/90 py-1.5 pl-1.5 pr-4 shadow-card backdrop-blur" aria-label="CarePortal home">
+        <TransitionLink href="/" className="pointer-events-auto rounded-full bg-card/90 py-1.5 pl-1.5 pr-4 shadow-card backdrop-blur" aria-label="Healthcareportal home">
           <Logo compact />
         </TransitionLink>
         <nav className="pointer-events-auto flex items-center gap-2 rounded-full border border-black/10 bg-card/90 p-1 shadow-card backdrop-blur" aria-label="Account">
@@ -350,7 +350,7 @@ export function Landing() {
                 lines={[
                   { text: "Care, booked," },
                   { text: "read, and", className: "pl-[6vw]" },
-                  { text: <span className="em-serif text-primary">remembered.</span>, className: "pl-[1.5vw]" },
+                  { text: <span className="text-primary">remembered.</span>, className: "pl-[1.5vw]" },
                 ]}
               />
               <div data-hero-fade className="mt-8 flex max-w-xl flex-col gap-6 opacity-0 sm:mt-10 lg:ml-[6vw]">
@@ -372,8 +372,8 @@ export function Landing() {
                 <div className="space-y-4 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-3xl leading-none">Tue 14 Oct</p>
-                      <p className="tabular mt-1 font-mono text-sm text-muted-foreground">10:30 am</p>
+                      <p className="text-2xl font-semibold leading-none">Tue 14 Oct</p>
+                      <p className="tabular mt-1 tabular text-sm text-muted-foreground">10:30 am</p>
                     </div>
                     <StatusBadge status="confirmed" />
                   </div>
@@ -392,7 +392,7 @@ export function Landing() {
             <div className="ticker overflow-hidden border-t border-foreground/10 bg-foreground py-4 text-background" aria-hidden>
               <div className="ticker-track flex w-max whitespace-nowrap">
                 {[...TICKER, ...TICKER, ...TICKER, ...TICKER].map((t, i) => (
-                  <span key={i} className="label-mono flex items-center px-6 text-[12px]">
+                  <span key={i} className="eyebrow flex items-center px-6 text-[12px]">
                     {t}
                     <span className="ml-12 h-1 w-1 rounded-full bg-coral" />
                   </span>
@@ -408,7 +408,7 @@ export function Landing() {
             <div>
               <MaskLines
                 className="display-lg"
-                lines={[{ text: "For" }, { text: <span className="em-serif text-mint">patients,</span>, className: "pl-[5vw]" }, { text: "calm by default.", className: "pl-[1vw]" }]}
+                lines={[{ text: "For" }, { text: <span className="text-mint">patients,</span>, className: "pl-[5vw]" }, { text: "calm by default.", className: "pl-[1vw]" }]}
               />
               <Points items={ROLE_POINTS.patient} tone="light" />
             </div>
@@ -427,7 +427,7 @@ export function Landing() {
             <div className="order-1 lg:order-2 lg:pl-[4vw]">
               <MaskLines
                 className="display-lg"
-                lines={[{ text: "For" }, { text: <span className="em-serif text-primary">doctors,</span>, className: "pl-[5vw]" }, { text: "the day in view.", className: "pl-[1vw]" }]}
+                lines={[{ text: "For" }, { text: <span className="text-primary">doctors,</span>, className: "pl-[5vw]" }, { text: "the day in view.", className: "pl-[1vw]" }]}
               />
               <Points items={ROLE_POINTS.doctor} tone="dark" />
             </div>
@@ -440,7 +440,7 @@ export function Landing() {
             <div>
               <MaskLines
                 className="display-lg"
-                lines={[{ text: "For" }, { text: <span className="em-serif text-mint">administrators,</span>, className: "pl-[5vw]" }, { text: "nothing hidden.", className: "pl-[1vw]" }]}
+                lines={[{ text: "For" }, { text: <span className="text-mint">administrators,</span>, className: "pl-[5vw]" }, { text: "nothing hidden.", className: "pl-[1vw]" }]}
               />
               <Points items={ROLE_POINTS.admin} tone="light" />
             </div>
@@ -457,12 +457,12 @@ export function Landing() {
               <div>
                 <MaskLines
                   className="display-lg"
-                  lines={[{ text: "Three steps" }, { text: <span className="em-serif text-primary">to booked.</span>, className: "pl-[4vw]" }]}
+                  lines={[{ text: "Three steps" }, { text: <span className="text-primary">to booked.</span>, className: "pl-[4vw]" }]}
                 />
                 <ol className="mt-10 max-w-md space-y-6">
                   {flowSteps.map(([title, text], i) => (
                     <li key={title} className={cn("transition-opacity duration-500 ease-out-expo", step === i ? "opacity-100" : "opacity-40")} aria-current={step === i ? "step" : undefined}>
-                      <h3 className="font-display text-2xl">{title}</h3>
+                      <h3 className="text-xl font-semibold">{title}</h3>
                       <p className="mt-1 text-muted-foreground">{text}</p>
                     </li>
                   ))}
@@ -478,7 +478,7 @@ export function Landing() {
           <div data-statement className="mx-auto w-full max-w-[88rem] px-5 py-24 sm:px-8">
             <p className="display-md max-w-5xl !text-[clamp(2rem,5vw,4.25rem)] !leading-[1.08]">
               {STATEMENT.map((w, i) => (
-                <span key={i} data-word className={cn(w.startsWith("audit") || w.startsWith("record") ? "em-serif text-mint" : "")}>
+                <span key={i} data-word className={cn(w.startsWith("audit") || w.startsWith("record") ? "text-mint" : "")}>
                   {w}{" "}
                 </span>
               ))}
@@ -490,7 +490,7 @@ export function Landing() {
                 ["Trail", "Each record view is logged with who, what and when."],
               ].map(([k, v]) => (
                 <div key={k} className="bg-sidebar p-5">
-                  <dt className="label-mono text-mint">{k}</dt>
+                  <dt className="eyebrow text-mint">{k}</dt>
                   <dd className="mt-2 text-sm text-white/75">{v}</dd>
                 </div>
               ))}
@@ -503,7 +503,7 @@ export function Landing() {
           <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-10 px-5 py-20 sm:px-8">
             <MaskLines
               className="display-xl"
-              lines={[{ text: "Ready when" }, { text: <span className="em-serif text-primary">you are.</span>, className: "pl-[8vw]" }]}
+              lines={[{ text: "Ready when" }, { text: <span className="text-primary">you are.</span>, className: "pl-[8vw]" }]}
             />
             <div className="flex flex-wrap gap-3 lg:pl-[8vw]">
               <TransitionLink href="/register" className={buttonClass("action", "default", "h-12 px-7 text-[15px]")}>

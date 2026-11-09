@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.permissions import Perm, has
 from app.core.security import decode_access_token
 from app.db import get_db
 from app.models import Doctor, Patient, Role, User
@@ -35,6 +36,17 @@ def require_roles(*roles: Role) -> Callable[[User], User]:
     return _dep
 
 
+def require_perm(perm: Perm) -> Callable[[User], User]:
+    """Endpoint guard by permission (see app/core/permissions.py)."""
+
+    def _dep(user: User = Depends(get_current_user)) -> User:
+        if not has(user.role, perm):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+        return user
+
+    return _dep
+
+
 def current_patient(user: User = Depends(require_roles(Role.patient))) -> Patient:
     if not user.patient:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Patient profile missing")
@@ -46,3 +58,4 @@ def current_doctor(user: User = Depends(require_roles(Role.doctor))) -> Doctor:
 
 
 require_admin = require_roles(Role.admin)
+require_lab = require_perm(Perm.lab_orders)

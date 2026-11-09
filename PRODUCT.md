@@ -1,6 +1,6 @@
 # Product
 
-CarePortal is a healthcare patient portal with three role workspaces: patient, doctor, administrator.
+Healthcareportal is a healthcare patient portal with three role workspaces: patient, doctor, administrator.
 Synthetic demo data only. It gives no diagnosis or treatment advice and is not a validated clinical system.
 
 ## Users

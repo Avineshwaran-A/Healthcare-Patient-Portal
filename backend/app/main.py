@@ -6,7 +6,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.routers import admin, appointments, auth, catalog, doctor, notifications, patients
+from app.routers import admin, appointments, auth, billing, catalog, doctor, lab, notifications, patients
 
 settings = get_settings()
 log = logging.getLogger("hcpp")
@@ -50,7 +50,7 @@ async def security_middleware(request: Request, call_next):
     return response
 
 
-for r in (auth, catalog, patients, appointments, doctor, notifications, admin):
+for r in (auth, catalog, patients, appointments, doctor, lab, billing, notifications, admin):
     app.include_router(r.router, prefix="/api")
 
 

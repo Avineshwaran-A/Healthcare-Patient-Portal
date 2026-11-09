@@ -54,7 +54,7 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
             <Logo inverted />
           </Link>
         </div>
-        <p className="mb-2 px-3 label-mono text-sidebar-foreground/60">
+        <p className="mb-2 px-3 eyebrow text-sidebar-foreground/60">
           {ROLE_LABEL[me.role]} workspace
         </p>
         <NavLinks items={items} root={root} />

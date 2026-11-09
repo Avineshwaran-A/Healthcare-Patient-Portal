@@ -42,9 +42,9 @@ const config: Config = {
         "in-out-quart": "cubic-bezier(0.65, 0, 0.35, 1)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
-        display: ["var(--font-display)", "ui-serif", "Georgia", "Cambria", "serif"],
-        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        // Inter everywhere. `mono` is aliased to the same stack so no component can bring in a second face.
+        sans: ["var(--font-sans)", "Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
+        mono: ["var(--font-sans)", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

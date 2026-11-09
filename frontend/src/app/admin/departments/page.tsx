@@ -13,7 +13,7 @@ export default async function DepartmentsPage() {
   return (
     <>
       <PageHeader title="Departments" description="Departments group doctors and power the patient search filter." />
-      <Card className="max-w-3xl">
+      <Card>
         <CardHeader title={`${deps.length} departments`} />
         <CardBody>
           <DepartmentManager departments={deps} />

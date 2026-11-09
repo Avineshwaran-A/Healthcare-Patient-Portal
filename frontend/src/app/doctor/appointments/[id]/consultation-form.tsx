@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { Alert, Button, Field, Input, Textarea } from "@/components/ui";
+import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
 import { api } from "@/lib/api";
 import type { RxItem } from "@/types/api";
@@ -31,6 +31,7 @@ export function ConsultationForm({ appointmentId }: { appointmentId: number }) {
             .filter((i) => i.medication.trim())
             .map((i) => ({ ...i, instructions: i.instructions?.trim() || null, duration_days: Number(i.duration_days) })),
           lab_tests: labs.split(/[\n,]/).map((s) => s.trim()).filter(Boolean),
+          follow_up_in_days: f.follow_up ? Number(f.follow_up) : null,
           mark_completed: f.mark_completed === "on",
         },
       }),
@@ -82,6 +83,15 @@ export function ConsultationForm({ appointmentId }: { appointmentId: number }) {
 
       <Field label="Request lab tests" htmlFor="labs" hint="One per line or comma-separated, e.g. CBC, Lipid profile">
         <Textarea id="labs" value={labs} onChange={(e) => setLabs(e.target.value)} rows={2} />
+      </Field>
+      <Field label="Recommend a follow-up" htmlFor="follow_up" hint="The patient is notified with a link to book.">
+        <Select id="follow_up" name="follow_up" defaultValue="" className="sm:max-w-xs">
+          <option value="">No follow-up</option>
+          <option value="7">In 1 week</option>
+          <option value="14">In 2 weeks</option>
+          <option value="30">In 1 month</option>
+          <option value="90">In 3 months</option>
+        </Select>
       </Field>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="mark_completed" defaultChecked className="h-4 w-4 accent-[hsl(var(--primary))]" />

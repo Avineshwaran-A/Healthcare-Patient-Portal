@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.permissions import ROLE_PERMISSIONS
 from app.core.security import DUMMY_HASH, create_access_token, hash_password, verify_password
 from app.db import get_db
 from app.deps import client_ip, get_current_user
@@ -47,6 +48,7 @@ def me_out(user: User) -> MeOut:
     out = MeOut.model_validate(user)
     out.patient_id = user.patient.id if user.patient else None
     out.doctor_id = user.doctor.id if user.doctor else None
+    out.permissions = sorted(p.value for p in ROLE_PERMISSIONS.get(user.role, ()))
     return out
 
 

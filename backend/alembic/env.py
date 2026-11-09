@@ -23,6 +23,13 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     engine = make_engine(URL)
     with engine.connect() as connection:
+        if URL.startswith("sqlite"):
+            # SQLite batch migrations rebuild tables (create copy, drop old, rename).
+            # With foreign keys enforced, dropping the old table would cascade-delete
+            # child rows, so enforcement is off while migrating (it must be set
+            # outside a transaction). PostgreSQL alters tables in place.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
         context.configure(
             connection=connection, target_metadata=target_metadata, render_as_batch=URL.startswith("sqlite")
         )

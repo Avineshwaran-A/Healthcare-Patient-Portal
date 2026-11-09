@@ -37,6 +37,8 @@ def _enum(cls):
 class Role(str, enum.Enum):
     patient = "patient"
     doctor = "doctor"
+    lab = "lab"  # lab technician
+    billing = "billing"  # billing / insurance staff
     admin = "admin"
 
 
@@ -49,8 +51,36 @@ class AppointmentStatus(str, enum.Enum):
 
 
 class LabStatus(str, enum.Enum):
+    """requested -> collected -> processing -> resulted (entered, unverified) -> completed (verified, released).
+
+    Only `completed` results are visible to doctors and patients.
+    """
+
     requested = "requested"
+    collected = "collected"
+    processing = "processing"
+    resulted = "resulted"
     completed = "completed"
+
+
+class FulfilmentStatus(str, enum.Enum):
+    pending = "pending"
+    ready = "ready"
+    dispensed = "dispensed"
+    unavailable = "unavailable"
+
+
+class InsuranceStatus(str, enum.Enum):
+    unverified = "unverified"
+    verified = "verified"
+    rejected = "rejected"
+
+
+class ClaimStatus(str, enum.Enum):
+    submitted = "submitted"
+    approved = "approved"
+    rejected = "rejected"
+    settled = "settled"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -96,8 +126,19 @@ class Patient(Base):
     address: Mapped[str | None] = mapped_column(String(300))
     emergency_contact: Mapped[str | None] = mapped_column(String(120))
     allergies: Mapped[str | None] = mapped_column(String(500))
+    # Insurance details are owned by billing staff; patients can only read them.
+    insurer: Mapped[str | None] = mapped_column(String(120))
+    policy_number: Mapped[str | None] = mapped_column(String(60))
+    insurance_status: Mapped[InsuranceStatus] = mapped_column(
+        _enum(InsuranceStatus), default=InsuranceStatus.unverified, server_default="unverified"
+    )
 
     user: Mapped[User] = relationship(back_populates="patient")
+
+    @property
+    def code(self) -> str:
+        """Human-facing Patient ID, derived from the unique primary key (one profile per patient)."""
+        return f"PT-{self.id:06d}"
 
 
 class Doctor(Base):
@@ -196,7 +237,11 @@ class MedicalRecord(Base):
     chief_complaint: Mapped[str | None] = mapped_column(String(500))
     assessment: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str] = mapped_column(Text)
+    follow_up_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_local)
+    # Author-only amendments; every change is audited with its reason.
+    amended_at: Mapped[datetime | None] = mapped_column(DateTime)
+    amendment_reason: Mapped[str | None] = mapped_column(String(300))
 
     doctor: Mapped[Doctor] = relationship()
 
@@ -212,8 +257,16 @@ class Prescription(Base):
     )
     notes: Mapped[str | None] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_local)
+    # Fulfilment is tracked by billing/pharmacy desk; it never changes the clinical content above.
+    fulfilment_status: Mapped[FulfilmentStatus] = mapped_column(
+        _enum(FulfilmentStatus), default=FulfilmentStatus.pending, server_default="pending", index=True
+    )
+    fulfilment_note: Mapped[str | None] = mapped_column(String(300))
+    fulfilment_updated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    fulfilment_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     doctor: Mapped[Doctor] = relationship()
+    patient: Mapped["Patient"] = relationship()
     items: Mapped[list["PrescriptionItem"]] = relationship(
         back_populates="prescription", cascade="all, delete-orphan"
     )
@@ -245,16 +298,23 @@ class LabReport(Base):
     doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id", ondelete="RESTRICT"))
     appointment_id: Mapped[int | None] = mapped_column(ForeignKey("appointments.id", ondelete="SET NULL"))
     test_name: Mapped[str] = mapped_column(String(150))
-    status: Mapped[LabStatus] = mapped_column(_enum(LabStatus), default=LabStatus.requested)
+    status: Mapped[LabStatus] = mapped_column(_enum(LabStatus), default=LabStatus.requested, index=True)
+    assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    resulted_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    verified_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    collected_at: Mapped[datetime | None] = mapped_column(DateTime)
+    amended_at: Mapped[datetime | None] = mapped_column(DateTime)
+    amendment_reason: Mapped[str | None] = mapped_column(String(300))
     result_summary: Mapped[str | None] = mapped_column(Text)
     file_key: Mapped[str | None] = mapped_column(String(100))  # random name on disk, never user-supplied
     file_name: Mapped[str | None] = mapped_column(String(200))
     file_mime: Mapped[str | None] = mapped_column(String(50))
     requested_at: Mapped[datetime] = mapped_column(DateTime, default=now_local)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)  # verified and released
 
     doctor: Mapped[Doctor] = relationship()
     patient: Mapped[Patient] = relationship()
+    assigned_to: Mapped[User | None] = relationship(foreign_keys=[assigned_to_id])
 
 
 class Invoice(Base):
@@ -272,10 +332,40 @@ class Invoice(Base):
     )
     issued_at: Mapped[datetime] = mapped_column(DateTime, default=now_local)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Paid and void invoices are final. These record who finalised them and how.
+    payment_method: Mapped[str | None] = mapped_column(String(20))
+    payment_reference: Mapped[str | None] = mapped_column(String(80))
+    finalized_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    note: Mapped[str | None] = mapped_column(String(300))
 
     patient: Mapped[Patient] = relationship()
 
     __table_args__ = (CheckConstraint("amount >= 0", name="ck_invoice_amount_nonneg"),)
+
+
+class InsuranceClaim(Base):
+    __tablename__ = "insurance_claims"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="CASCADE"), index=True)
+    insurer: Mapped[str] = mapped_column(String(120))
+    policy_number: Mapped[str] = mapped_column(String(60))
+    amount_claimed: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    amount_approved: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    status: Mapped[ClaimStatus] = mapped_column(_enum(ClaimStatus), default=ClaimStatus.submitted, index=True)
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_local)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_local, onupdate=now_local)
+
+    invoice: Mapped[Invoice] = relationship()
+    patient: Mapped[Patient] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("amount_claimed > 0", name="ck_claim_amount_pos"),
+        CheckConstraint("amount_approved IS NULL OR amount_approved >= 0", name="ck_claim_approved_nonneg"),
+    )
 
 
 class Notification(Base):
@@ -312,6 +402,10 @@ __all__ = [
     "AppointmentStatus",
     "LabStatus",
     "InvoiceStatus",
+    "FulfilmentStatus",
+    "InsuranceStatus",
+    "ClaimStatus",
+    "InsuranceClaim",
     "User",
     "Department",
     "Patient",

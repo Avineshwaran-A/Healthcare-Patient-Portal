@@ -28,16 +28,18 @@ from app.schemas import (
     DepartmentIn,
     DepartmentOut,
     DoctorAdminUpdate,
-    InvoiceOut,
-    InvoiceStatusIn,
     Message,
     Page,
     Stats,
+    RoleIn,
+    StaffCreate,
     UserOut,
     UserStatusIn,
 )
 from app.services import audit, scheduling
 from app.services.notifications import notify
+from app.core.security import hash_password
+from app.core.permissions import STAFF_ROLES
 from app.utils import now_local
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -129,6 +131,38 @@ def set_user_status(
     audit.record(
         db, "user.activate" if data.is_active else "user.deactivate", admin.id, "user", user.id, ip=client_ip(request)
     )
+    db.commit()
+    return UserOut.model_validate(user)
+
+
+@router.post("/staff", response_model=UserOut, status_code=201)
+def create_staff(data: StaffCreate, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Create a lab, billing or admin account. Doctors register with credentials and are approved instead."""
+    if db.scalar(select(User.id).where(func.lower(User.email) == data.email.lower())):
+        raise HTTPException(409, "An account with this email already exists")
+    user = User(
+        email=data.email.lower(), password_hash=hash_password(data.password), full_name=data.full_name.strip(),
+        phone=data.phone, role=Role(data.role),
+    )
+    db.add(user)
+    db.flush()
+    audit.record(db, "staff.create", admin.id, "user", user.id, detail=f"role={data.role}", ip=client_ip(request))
+    db.commit()
+    return UserOut.model_validate(user)
+
+
+@router.patch("/users/{user_id}/role", response_model=UserOut)
+def set_role(user_id: int, data: RoleIn, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.id == admin.id:
+        raise HTTPException(409, "You cannot change your own role")
+    if user.role not in STAFF_ROLES:
+        raise HTTPException(409, "Patient and doctor accounts keep their role")
+    before = user.role
+    user.role = Role(data.role)
+    audit.record(db, "user.role", admin.id, "user", user.id, detail=f"{before.value}->{data.role}", ip=client_ip(request))
     db.commit()
     return UserOut.model_validate(user)
 
@@ -260,42 +294,6 @@ def delete_department(dep_id: int, request: Request, db: Session = Depends(get_d
     audit.record(db, "department.delete", admin.id, "department", dep_id, detail=dep.name, ip=client_ip(request))
     db.commit()
     return Message(detail="Department deleted")
-
-
-# ---------- billing ----------
-@router.get("/invoices", response_model=Page[InvoiceOut])
-def invoices(
-    status: InvoiceStatus | None = None,
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
-):
-    stmt = select(Invoice).options(selectinload(Invoice.patient).selectinload(Patient.user))
-    if status:
-        stmt = stmt.where(Invoice.status == status)
-    rows, total = _page(db, stmt.order_by(Invoice.issued_at.desc(), Invoice.id.desc()), page, size)
-    return Page(items=[InvoiceOut.build(i) for i in rows], total=total, page=page, size=size)
-
-
-@router.patch("/invoices/{invoice_id}", response_model=InvoiceOut)
-def set_invoice_status(
-    invoice_id: int, data: InvoiceStatusIn, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)
-):
-    inv = db.get(Invoice, invoice_id)
-    if not inv:
-        raise HTTPException(404, "Invoice not found")
-    if inv.status != InvoiceStatus.unpaid:
-        raise HTTPException(409, "Only unpaid invoices can be updated")
-    if data.status == InvoiceStatus.unpaid:
-        raise HTTPException(422, "Invoice is already unpaid")
-    inv.status = data.status
-    inv.paid_at = now_local() if data.status == InvoiceStatus.paid else None
-    if data.status == InvoiceStatus.paid:
-        notify(db, inv.patient.user_id, "Payment recorded", f"Invoice #{inv.id} (₹{inv.amount}) is marked as paid.", "/patient/billing")
-    audit.record(db, f"invoice.{data.status.value}", admin.id, "invoice", inv.id, ip=client_ip(request))
-    db.commit()
-    return InvoiceOut.build(inv)
 
 
 # ---------- audit ----------

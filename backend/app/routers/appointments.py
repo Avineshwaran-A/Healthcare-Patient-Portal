@@ -1,12 +1,12 @@
 from datetime import date, datetime, timedelta
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import client_ip, current_patient, get_current_user, require_roles
+from app.deps import client_ip, current_patient, require_roles
 from app.models import Appointment, AppointmentStatus, MedicalRecord, Patient, Role, User
 from app.schemas import (
     AppointmentCreate,
@@ -19,16 +19,24 @@ from app.services import scheduling
 from app.utils import now_local
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
+ADMIN_STATUSES = {AppointmentStatus.confirmed, AppointmentStatus.cancelled}
 
 
-def to_out(db: Session, rows: list[Appointment]) -> list[AppointmentOut]:
+VIEWERS = require_roles(Role.patient, Role.doctor, Role.admin)  # lab and billing have no appointment access
+
+
+def to_out(db: Session, rows: list[Appointment], viewer: User | None = None) -> list[AppointmentOut]:
     ids = [a.id for a in rows]
     with_record = (
         set(db.scalars(select(MedicalRecord.appointment_id).where(MedicalRecord.appointment_id.in_(ids))))
         if ids
         else set()
     )
-    return [AppointmentOut.build(a, a.id in with_record) for a in rows]
+    out = [AppointmentOut.build(a, a.id in with_record) for a in rows]
+    if viewer is not None and viewer.role == Role.admin:
+        for o in out:  # the visit reason is clinical; administrators see operations only
+            o.reason = None
+    return out
 
 
 @router.get("", response_model=Page[AppointmentOut])
@@ -39,7 +47,7 @@ def list_appointments(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(VIEWERS),
 ):
     stmt = scheduling.appointment_query()
     if user.role == Role.patient:
@@ -63,7 +71,7 @@ def list_appointments(
         order = Appointment.start_at.asc()
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = db.scalars(stmt.order_by(order).offset((page - 1) * size).limit(size)).all()
-    return Page(items=to_out(db, list(rows)), total=total or 0, page=page, size=size)
+    return Page(items=to_out(db, list(rows), user), total=total or 0, page=page, size=size)
 
 
 @router.post("", response_model=AppointmentOut, status_code=201)
@@ -74,9 +82,9 @@ def book(data: AppointmentCreate, request: Request, db: Session = Depends(get_db
 
 
 @router.get("/{appointment_id}", response_model=AppointmentOut)
-def get_one(appointment_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_one(appointment_id: int, db: Session = Depends(get_db), user: User = Depends(VIEWERS)):
     appt = scheduling.get_visible_appointment(db, user, appointment_id)
-    return to_out(db, [appt])[0]
+    return to_out(db, [appt], user)[0]
 
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentOut)
@@ -106,4 +114,6 @@ def update_status(
     user: User = Depends(require_roles(Role.doctor, Role.admin)),
 ):
     appt = scheduling.get_visible_appointment(db, user, appointment_id)
-    return to_out(db, [scheduling.set_status(db, user, appt, data.status, ip=client_ip(request))])[0]
+    if user.role == Role.admin and data.status not in ADMIN_STATUSES:
+        raise HTTPException(403, "Administrators can confirm or cancel; clinical outcomes are recorded by the doctor")
+    return to_out(db, [scheduling.set_status(db, user, appt, data.status, ip=client_ip(request))], user)[0]

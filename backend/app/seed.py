@@ -7,7 +7,13 @@ Demo accounts (all share DEMO_PASSWORD below):
     admin@example.com                 – administrator
     dr.mehta@example.com, dr.rao@example.com, ... – approved doctors
     dr.pending@example.com            – doctor awaiting approval
+    lab@example.com, lab2@example.com – lab technicians
+    billing@example.com               – billing / insurance staff
     asha@example.com, rahul@example.com, meera@example.com – patients
+
+On a database that already has users (e.g. one created before the lab and
+billing roles existed), the seed only adds any missing demo staff accounts,
+and never in production.
 """
 
 import sys
@@ -26,6 +32,7 @@ from app.models import (
     Doctor,
     DoctorAvailability,
     Invoice,
+    InsuranceStatus,
     InvoiceStatus,
     LabReport,
     LabStatus,
@@ -56,6 +63,12 @@ DOCTORS = [
     ("dr.singh@example.com", "Dr. Harpreet Singh", "Orthopaedics", "Orthopaedic Surgeon", "MBBS, MS (Orthopaedics)", 16, "1000"),
 ]
 
+STAFF = [
+    ("lab@example.com", "Ravi Kumar", Role.lab),
+    ("lab2@example.com", "Divya Menon", Role.lab),
+    ("billing@example.com", "Sunita Das", Role.billing),
+]
+
 PATIENTS = [
     ("asha@example.com", "Asha Verma", "1990-04-12", "Female", "B+"),
     ("rahul@example.com", "Rahul Nair", "1985-09-30", "Male", "O+"),
@@ -71,9 +84,14 @@ def run(reset: bool = False) -> None:
         Base.metadata.create_all(engine)
     db = SessionLocal()
     if db.scalar(select(User.id).limit(1)):
-        print("Database already has users; skipping seed (use --reset in development).")
+        if get_settings().environment == "production":
+            print("Database already has users; skipping seed.")
+            return
+        added = _ensure_staff(db, hash_password(DEMO_PASSWORD))
+        print(f"Database already has users; added {added} missing demo staff account(s). Use --reset for a full reseed.")
         return
     pw = hash_password(DEMO_PASSWORD)
+    _ensure_staff(db, pw)
 
     deps = {n: Department(name=n, description=d) for n, d in DEPARTMENTS}
     db.add_all(deps.values())
@@ -116,6 +134,9 @@ def run(reset: bool = False) -> None:
         u.patient = Patient(
             date_of_birth=datetime.fromisoformat(dob).date(), gender=gender, blood_group=bg, address="Bengaluru, KA"
         )
+        if email == "asha@example.com":  # synthetic insurance, already verified by billing
+            u.patient.insurer, u.patient.policy_number = "Demo Health Insurance", "DHI-000123"
+            u.patient.insurance_status = InsuranceStatus.verified
         db.add(u)
         patients.append(u.patient)
     db.flush()
@@ -145,8 +166,9 @@ def run(reset: bool = False) -> None:
                         created_at=past.start_at + timedelta(minutes=25),
                         items=[PrescriptionItem(medication="Paracetamol 500 mg", dosage="1 tablet", frequency="Every 8 hours if fever", duration_days=3),
                                PrescriptionItem(medication="Warm saline gargle", dosage="—", frequency="3 times a day", duration_days=5)]))
+    lab_tech = db.scalar(select(User).where(User.email == "lab@example.com"))
     db.add(LabReport(patient_id=asha.id, doctor_id=mehta.id, appointment_id=past.id, test_name="Complete Blood Count",
-                     status=LabStatus.completed, result_summary="All values within reference range (synthetic).",
+                     status=LabStatus.completed, assigned_to_id=lab_tech.id, resulted_by_id=lab_tech.id, verified_by_id=lab_tech.id, result_summary="All values within reference range (synthetic).",
                      requested_at=past.start_at, completed_at=past.start_at + timedelta(days=1)))
     db.add(Invoice(patient_id=asha.id, appointment_id=past.id, description=f"Consultation – {mehta.user.full_name}",
                    amount=mehta.consultation_fee, status=InvoiceStatus.paid, issued_at=past.start_at, paid_at=past.start_at))
@@ -156,6 +178,8 @@ def run(reset: bool = False) -> None:
     db.add(MedicalRecord(patient_id=rahul.id, doctor_id=rao.id, appointment_id=past2.id, chief_complaint="Routine check-up",
                          notes="BP 128/82. ECG requested. Continue regular exercise.", created_at=past2.start_at))
     db.add(LabReport(patient_id=rahul.id, doctor_id=rao.id, appointment_id=past2.id, test_name="Lipid Profile", requested_at=past2.start_at))
+    db.add(LabReport(patient_id=rahul.id, doctor_id=rao.id, appointment_id=past2.id, test_name="ECG", requested_at=past2.start_at,
+                     status=LabStatus.collected, assigned_to_id=lab_tech.id, collected_at=past2.start_at + timedelta(hours=1)))
     db.add(Invoice(patient_id=rahul.id, appointment_id=past2.id, description=f"Consultation – {rao.user.full_name}",
                    amount=rao.consultation_fee, issued_at=past2.start_at))
 
@@ -175,6 +199,16 @@ def run(reset: bool = False) -> None:
     db.commit()
     db.close()
     print("Seeded synthetic demo data. Demo password for all accounts is in app/seed.py (DEMO_PASSWORD).")
+
+
+def _ensure_staff(db, pw: str) -> int:
+    added = 0
+    for email, name, role in STAFF:
+        if not db.scalar(select(User.id).where(User.email == email)):
+            db.add(User(email=email, password_hash=pw, full_name=name, role=role))
+            added += 1
+    db.commit()
+    return added
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Mark: a pulse line inside a rounded square. Wordmark: serif "Care" + italic "portal". */
+/** Mark: a pulse line inside a rounded square. Wordmark: "Healthcare" + "portal" in the brand colour, Inter SemiBold. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <span className={cn("flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-mint", className)} aria-hidden>
@@ -15,8 +15,8 @@ export function Logo({ compact = false, inverted = false }: { compact?: boolean;
   return (
     <span className={cn("inline-flex items-center gap-2.5", inverted ? "text-white" : "text-foreground")}>
       <LogoMark className={inverted ? "bg-mint text-sidebar" : undefined} />
-      <span className={cn("font-display font-normal tracking-tight", compact ? "text-lg" : "text-xl")}>
-        Care<span className={cn("em-serif", inverted ? "text-mint" : "text-primary")}>portal</span>
+      <span className={cn("font-semibold tracking-tight", compact ? "text-lg" : "text-xl")}>
+        Healthcare<span className={cn(inverted ? "text-mint" : "text-primary")}>portal</span>
       </span>
     </span>
   );

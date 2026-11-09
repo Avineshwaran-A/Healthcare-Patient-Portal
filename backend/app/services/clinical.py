@@ -1,4 +1,9 @@
-"""Consultation notes, prescriptions and lab reports."""
+"""Consultation notes, prescriptions and lab requests (doctor-owned clinical data).
+
+Lab *results* are owned by the laboratory: see services/lab.py.
+"""
+
+from datetime import timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -6,10 +11,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     Appointment,
+    Role,
+    User,
     AppointmentStatus as S,
     Doctor,
     LabReport,
-    LabStatus,
     MedicalRecord,
     Patient,
     Prescription,
@@ -17,11 +23,13 @@ from app.models import (
 )
 from app.schemas import (
     ConsultationIn,
+    EmergencyAccessIn,
     LabReportOut,
     MedicalRecordOut,
     PatientHistory,
     PatientProfileOut,
     PrescriptionOut,
+    RecordAmendIn,
 )
 from app.services import audit, scheduling
 from app.services.notifications import notify
@@ -32,6 +40,7 @@ def profile_out(p: Patient) -> PatientProfileOut:
     u = p.user
     return PatientProfileOut(
         id=p.id,
+        patient_code=p.code,
         email=u.email,
         full_name=u.full_name,
         phone=u.phone,
@@ -41,6 +50,9 @@ def profile_out(p: Patient) -> PatientProfileOut:
         address=p.address,
         emergency_contact=p.emergency_contact,
         allergies=p.allergies,
+        insurer=p.insurer,
+        policy_number=p.policy_number,
+        insurance_status=p.insurance_status,
     )
 
 
@@ -70,11 +82,19 @@ def prescriptions_for(db: Session, patient_id: int) -> list[Prescription]:
     )
 
 
+def lab_opts():
+    return (
+        _doc_opt(LabReport),
+        selectinload(LabReport.patient).selectinload(Patient.user),
+        selectinload(LabReport.assigned_to),
+    )
+
+
 def labs_for(db: Session, patient_id: int) -> list[LabReport]:
     return list(
         db.scalars(
             select(LabReport)
-            .options(_doc_opt(LabReport))
+            .options(*lab_opts())
             .where(LabReport.patient_id == patient_id)
             .order_by(LabReport.requested_at.desc())
         )
@@ -99,6 +119,27 @@ def doctor_view_history(db: Session, doctor: Doctor, patient_id: int, ip=None) -
     return history(db, patient)
 
 
+def emergency_access(db: Session, doctor: Doctor, patient_id: int, data: EmergencyAccessIn, ip=None) -> PatientHistory:
+    """Exceptional access to a patient the doctor has no appointment with.
+
+    Requires a stated reason, grants this single read only, is audited, and is
+    flagged to every active administrator for review.
+    """
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
+    audit.record(db, "record.emergency_access", doctor.user_id, "patient", patient_id, detail=data.reason, ip=ip)
+    for admin_id in db.scalars(select(User.id).where(User.role == Role.admin, User.is_active.is_(True))):
+        notify(
+            db,
+            admin_id,
+            "Emergency record access",
+            f"{doctor.user.full_name} used emergency access for patient {patient.code}. Review the audit log.",
+            "/admin/audit?action=record.emergency",
+        )
+    db.commit()
+    return history(db, patient)
+
 def save_consultation(db: Session, doctor: Doctor, appt: Appointment, data: ConsultationIn, ip=None) -> None:
     if appt.doctor_id != doctor.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Appointment not found")
@@ -116,6 +157,7 @@ def save_consultation(db: Session, doctor: Doctor, appt: Appointment, data: Cons
         chief_complaint=data.chief_complaint,
         assessment=data.assessment,
         notes=data.notes,
+        follow_up_date=(appt.start_at.date() + timedelta(days=data.follow_up_in_days)) if data.follow_up_in_days else None,
     )
     db.add(record)
     patient_user = appt.patient.user_id
@@ -136,8 +178,21 @@ def save_consultation(db: Session, doctor: Doctor, appt: Appointment, data: Cons
     if data.lab_tests:
         notify(db, patient_user, "Lab tests requested", f"{len(data.lab_tests)} test(s) requested by {doctor.user.full_name}.", "/patient/records")
 
+    if record.follow_up_date:
+        notify(
+            db,
+            patient_user,
+            "Follow-up recommended",
+            f"{doctor.user.full_name} recommends a follow-up around {record.follow_up_date:%d %b %Y}.",
+            f"/patient/doctors/{doctor.id}",
+        )
+
     db.flush()
     audit.record(db, "record.create", doctor.user_id, "appointment", appt.id, ip=ip)
+    if data.prescription_items:
+        audit.record(db, "prescription.create", doctor.user_id, "appointment", appt.id, ip=ip)
+    if data.lab_tests:
+        audit.record(db, "lab.request", doctor.user_id, "appointment", appt.id, detail=f"{len(data.lab_tests)} test(s)", ip=ip)
 
     if data.mark_completed and appt.status in (S.scheduled, S.confirmed):
         scheduling.set_status(db, doctor.user, appt, S.completed, ip=ip)  # commits
@@ -145,21 +200,19 @@ def save_consultation(db: Session, doctor: Doctor, appt: Appointment, data: Cons
         db.commit()
 
 
-def get_lab_for_doctor(db: Session, doctor: Doctor, lab_id: int) -> LabReport:
-    lab = db.scalar(select(LabReport).options(_doc_opt(LabReport)).where(LabReport.id == lab_id))
-    if not lab or lab.doctor_id != doctor.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Lab report not found")
-    return lab
-
-
-def complete_lab(db: Session, doctor: Doctor, lab: LabReport, summary: str, file_info, ip=None) -> LabReport:
-    if file_info:
-        lab.file_key, lab.file_name, lab.file_mime = file_info
-    lab.result_summary = summary
-    lab.status = LabStatus.completed
-    lab.completed_at = now_local()
-    patient = db.get(Patient, lab.patient_id)
-    notify(db, patient.user_id, "Lab result available", f"Your {lab.test_name} result is ready.", "/patient/records")
-    audit.record(db, "lab.complete", doctor.user_id, "lab_report", lab.id, ip=ip)
+def amend_record(db: Session, doctor: Doctor, record_id: int, data: RecordAmendIn, ip=None) -> MedicalRecord:
+    """Only the authoring doctor may amend a note, and must give a reason. Audited with the changed fields."""
+    record = db.scalar(select(MedicalRecord).options(_doc_opt(MedicalRecord)).where(MedicalRecord.id == record_id))
+    if not record or record.doctor_id != doctor.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Record not found")
+    fields = ("chief_complaint", "assessment", "notes", "follow_up_date")
+    changed = [f for f in fields if getattr(record, f) != getattr(data, f)]
+    if not changed:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nothing changed")
+    for f in changed:
+        setattr(record, f, getattr(data, f))
+    record.amended_at = now_local()
+    record.amendment_reason = data.reason
+    audit.record(db, "record.amend", doctor.user_id, "medical_record", record.id, detail="fields: " + ",".join(changed), ip=ip)
     db.commit()
-    return lab
+    return record

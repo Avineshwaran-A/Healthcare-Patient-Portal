@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -14,9 +16,12 @@ from app.schemas import (
     AvailabilityReplace,
     ConsultationIn,
     DoctorDashboard,
+    EmergencyAccessIn,
     LabReportOut,
+    MedicalRecordOut,
     Message,
     PatientHistory,
+    RecordAmendIn,
 )
 from app.services import audit, clinical, files, scheduling
 from app.utils import now_local
@@ -49,7 +54,7 @@ def dashboard(db: Session = Depends(get_db), doctor: Doctor = Depends(current_do
         completed_this_week=count(Appointment.start_at >= week_start, Appointment.status == S.completed),
         pending_labs=db.scalar(
             select(func.count(LabReport.id)).where(
-                LabReport.doctor_id == doctor.id, LabReport.status == LabStatus.requested
+                LabReport.doctor_id == doctor.id, LabReport.status != LabStatus.completed
             )
         )
         or 0,
@@ -90,47 +95,51 @@ def consultation(
     return Message(detail="Consultation saved")
 
 
+@router.post("/doctor/patients/{patient_id}/emergency-access", response_model=PatientHistory)
+def emergency_access(
+    patient_id: int, data: EmergencyAccessIn, request: Request, db: Session = Depends(get_db), doctor: Doctor = Depends(current_doctor)
+):
+    """Break-glass read of an unrelated patient's history: reason required, audited, admins alerted."""
+    return clinical.emergency_access(db, doctor, patient_id, data, ip=client_ip(request))
+
+
+@router.put("/doctor/records/{record_id}", response_model=MedicalRecordOut)
+def amend_record(
+    record_id: int, data: RecordAmendIn, request: Request, db: Session = Depends(get_db), doctor: Doctor = Depends(current_doctor)
+):
+    return MedicalRecordOut.build(clinical.amend_record(db, doctor, record_id, data, ip=client_ip(request)))
+
+
 @router.get("/doctor/labs", response_model=list[LabReportOut])
 def my_lab_requests(
-    status: LabStatus | None = LabStatus.requested,
+    status: Literal["pending", "completed"] = "pending",
     db: Session = Depends(get_db),
     doctor: Doctor = Depends(current_doctor),
 ):
-    stmt = select(LabReport).where(LabReport.doctor_id == doctor.id)
-    if status:
-        stmt = stmt.where(LabReport.status == status)
-    rows = db.scalars(stmt.order_by(LabReport.requested_at.desc()).limit(100)).all()
+    """Tests this doctor requested. Results appear only after the lab verifies them (read-only here)."""
+    done = LabReport.status == LabStatus.completed
+    stmt = select(LabReport).options(*clinical.lab_opts()).where(LabReport.doctor_id == doctor.id, done if status == "completed" else ~done)
+    order = LabReport.completed_at.desc() if status == "completed" else LabReport.requested_at.desc()
+    rows = db.scalars(stmt.order_by(order).limit(100)).all()
     return [LabReportOut.build(r) for r in rows]
 
 
-@router.post("/doctor/labs/{lab_id}/result", response_model=LabReportOut)
-async def upload_lab_result(
-    lab_id: int,
-    request: Request,
-    summary: str = Form(min_length=1, max_length=5000),
-    file: UploadFile | None = File(default=None),
-    db: Session = Depends(get_db),
-    doctor: Doctor = Depends(current_doctor),
-):
-    lab = clinical.get_lab_for_doctor(db, doctor, lab_id)
-    info = None
-    if file is not None and file.filename:
-        info = await files.save_upload(file)
-        files.delete(lab.file_key)  # replace previous file, if any
-    return LabReportOut.build(clinical.complete_lab(db, doctor, lab, summary, info, ip=client_ip(request)))
+def _may_download(db: Session, user: User, lab: LabReport) -> bool:
+    if user.role == Role.lab:
+        return lab.assigned_to_id == user.id  # the technician working the order
+    if lab.status != LabStatus.completed:
+        return False  # unverified results are not released
+    if user.role == Role.patient:
+        return bool(user.patient) and lab.patient_id == user.patient.id
+    if user.role == Role.doctor:
+        return lab.doctor_id == user.doctor.id or scheduling.doctor_treats_patient(db, user.doctor.id, lab.patient_id)
+    return False  # admin and billing have no access to lab files
 
 
 @router.get("/labs/{lab_id}/file")
 def download_lab_file(lab_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     lab = db.get(LabReport, lab_id)
-    allowed = lab and (
-        (user.role == Role.patient and user.patient and lab.patient_id == user.patient.id)
-        or (
-            user.role == Role.doctor
-            and (lab.doctor_id == user.doctor.id or scheduling.doctor_treats_patient(db, user.doctor.id, lab.patient_id))
-        )
-    )
-    if not allowed or not lab.file_key:
+    if not lab or not lab.file_key or not _may_download(db, user, lab):
         raise HTTPException(404, "File not found")
     audit.record(db, "lab.download", user.id, "lab_report", lab.id, ip=client_ip(request))
     db.commit()

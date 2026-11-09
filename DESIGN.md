@@ -1,4 +1,4 @@
-# CarePortal design system
+# Healthcareportal design system
 
 World: clinical editorial. Warm paper, deep ink, pine, one coral action accent. Source of truth for tokens is
 `frontend/src/app/globals.css`; the live specimen is `/design-system`.
@@ -17,10 +17,11 @@ World: clinical editorial. Warm paper, deep ink, pine, one coral action accent. 
 Rules: no violet; no gradient text; every text pair meets WCAG AA; status colours never decorate.
 
 ## Type
-- Display: Fraunces (variable, opsz + SOFT). `.display-xl`, `.display-lg`, `.display-md`. Italic `.em-serif` marks one word per headline.
-- Sans: Instrument Sans for interface and body.
-- Mono: JetBrains Mono for data, table headers, badges, labels (`.label-mono`). Tabular numerals on data.
-- Word placement: headlines are authored line by line and indented with `pl-[Nvw]`; one italic word; no eyebrow above a heading.
+- One typeface: **Inter** (variable, self-hosted via next/font), with system sans fallbacks. No serif, no monospace, no italics for emphasis.
+- Weights: 600 page, section and table headings; 500 card headings, labels, buttons, navigation, badges; 400 body, inputs, table cells, captions.
+- Large headings: `.display-xl` (2.5–4.5rem), `.display-lg` (2–3.25rem), `.display-md` (1.5–2rem), all SemiBold. Emphasis is colour on one phrase, never a second face.
+- `.eyebrow`: 12px Medium metadata line, sentence case. Tabular numerals on tables, `time`, `.tabular`, stats and IDs.
+- `font-mono` is aliased to Inter in `tailwind.config.ts` so no component can introduce another family.
 
 ## Components
 Buttons (pill): default pine, `action` coral, outline, secondary, ghost, destructive.

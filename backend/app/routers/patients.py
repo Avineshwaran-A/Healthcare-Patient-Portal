@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.deps import client_ip, current_patient
-from app.models import Invoice, Patient
+from app.models import InsuranceClaim, Invoice, Patient
 from app.schemas import (
+    ClaimOut,
     InvoiceOut,
     LabReportOut,
     MedicalRecordOut,
@@ -64,3 +65,14 @@ def my_invoices(db: Session = Depends(get_db), patient: Patient = Depends(curren
         .order_by(Invoice.issued_at.desc())
     ).all()
     return [InvoiceOut.build(i) for i in rows]
+
+
+@router.get("/claims", response_model=list[ClaimOut])
+def my_claims(db: Session = Depends(get_db), patient: Patient = Depends(current_patient)):
+    rows = db.scalars(
+        select(InsuranceClaim)
+        .options(selectinload(InsuranceClaim.patient).selectinload(Patient.user))
+        .where(InsuranceClaim.patient_id == patient.id)
+        .order_by(InsuranceClaim.created_at.desc())
+    ).all()
+    return [ClaimOut.build(c) for c in rows]
