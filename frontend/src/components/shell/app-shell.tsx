@@ -54,7 +54,7 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
             <Logo inverted />
           </Link>
         </div>
-        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+        <p className="mb-2 px-3 label-mono text-sidebar-foreground/60">
           {ROLE_LABEL[me.role]} workspace
         </p>
         <NavLinks items={items} root={root} />
@@ -85,7 +85,7 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main id="main" className="page-in mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

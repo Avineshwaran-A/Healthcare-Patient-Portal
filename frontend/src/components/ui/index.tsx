@@ -4,25 +4,26 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "default" | "secondary" | "outline" | "ghost" | "destructive";
+type ButtonVariant = "default" | "action" | "secondary" | "outline" | "ghost" | "destructive";
 type ButtonSize = "default" | "sm" | "icon";
 
 const variants: Record<ButtonVariant, string> = {
   default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover active:bg-primary-hover",
+  action: "bg-coral text-coral-foreground shadow-sm hover:bg-coral-hover active:bg-coral-hover",
   secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
   outline: "border border-input bg-card text-foreground shadow-sm hover:border-primary/40 hover:bg-accent hover:text-accent-foreground",
   ghost: "text-foreground hover:bg-muted",
   destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
 };
 const sizes: Record<ButtonSize, string> = {
-  default: "h-10 px-4 text-sm",
+  default: "h-10 px-5 text-sm",
   sm: "h-8 px-3 text-xs",
   icon: "h-9 w-9",
 };
 
 export function buttonClass(variant: ButtonVariant = "default", size: ButtonSize = "default", className?: string) {
   return cn(
-    "inline-flex cursor-pointer select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition-[color,background-color,border-color,transform] duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex cursor-pointer select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium transition-[color,background-color,border-color,transform,box-shadow] duration-200 ease-out-expo hover:-translate-y-px hover:shadow-lift active:translate-y-px active:shadow-none disabled:pointer-events-none disabled:opacity-50",
     variants[variant],
     sizes[size],
     className,
@@ -112,13 +113,33 @@ export function CardBody({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 }
 
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger" | "primary";
-const tones: Record<Tone, string> = {
-  neutral: "bg-secondary text-secondary-foreground ring-border",
-  info: "bg-info/10 text-info ring-info/20",
-  success: "bg-success/10 text-success ring-success/20",
-  warning: "bg-warning/10 text-warning ring-warning/25",
-  danger: "bg-destructive/10 text-destructive ring-destructive/20",
-  primary: "bg-accent text-accent-foreground ring-primary/20",
+export type BadgeVariant = "soft" | "solid" | "outline";
+
+const badgeVariants: Record<BadgeVariant, Record<Tone, string>> = {
+  soft: {
+    neutral: "bg-secondary text-secondary-foreground ring-border",
+    info: "bg-info/10 text-info ring-info/20",
+    success: "bg-success/10 text-success ring-success/20",
+    warning: "bg-warning/10 text-warning ring-warning/25",
+    danger: "bg-destructive/10 text-destructive ring-destructive/20",
+    primary: "bg-accent text-accent-foreground ring-primary/20",
+  },
+  solid: {
+    neutral: "bg-foreground text-background ring-transparent",
+    info: "bg-info text-white ring-transparent",
+    success: "bg-success text-white ring-transparent",
+    warning: "bg-warning text-white ring-transparent",
+    danger: "bg-destructive text-destructive-foreground ring-transparent",
+    primary: "bg-primary text-primary-foreground ring-transparent",
+  },
+  outline: {
+    neutral: "bg-transparent text-muted-foreground ring-input",
+    info: "bg-transparent text-info ring-info/50",
+    success: "bg-transparent text-success ring-success/50",
+    warning: "bg-transparent text-warning ring-warning/55",
+    danger: "bg-transparent text-destructive ring-destructive/50",
+    primary: "bg-transparent text-primary ring-primary/50",
+  },
 };
 const dots: Record<Tone, string> = {
   neutral: "bg-muted-foreground",
@@ -129,34 +150,57 @@ const dots: Record<Tone, string> = {
   primary: "bg-primary",
 };
 
-export function Badge({ tone = "neutral", dot = false, className, children, ...props }: React.HTMLAttributes<HTMLSpanElement> & { tone?: Tone; dot?: boolean }) {
+export function Badge({
+  tone = "neutral",
+  variant = "soft",
+  dot = false,
+  icon,
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: Tone; variant?: BadgeVariant; dot?: boolean; icon?: React.ReactNode }) {
   return (
     <span
-      className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", tones[tone], className)}
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider ring-1 ring-inset",
+        badgeVariants[variant][tone],
+        className,
+      )}
       {...props}
     >
-      {dot && <span className={cn("h-1.5 w-1.5 rounded-full", dots[tone])} aria-hidden />}
+      {icon ? <span className="flex h-3 w-3 items-center justify-center [&>svg]:h-3 [&>svg]:w-3" aria-hidden>{icon}</span> : null}
+      {dot && !icon && <span className={cn("h-1.5 w-1.5 rounded-full", variant === "solid" ? "bg-current" : dots[tone])} aria-hidden />}
       {children}
     </span>
   );
 }
 
-const STATUS: Record<string, { tone: Tone; label: string }> = {
+/** Domain status vocabulary: one source of truth for every status badge in the app. */
+export const STATUS: Record<string, { tone: Tone; label: string }> = {
+  // appointments
   scheduled: { tone: "info", label: "Scheduled" },
   confirmed: { tone: "primary", label: "Confirmed" },
   completed: { tone: "success", label: "Completed" },
   cancelled: { tone: "neutral", label: "Cancelled" },
   no_show: { tone: "warning", label: "Missed" },
   requested: { tone: "warning", label: "Pending" },
+  // billing
   unpaid: { tone: "warning", label: "Unpaid" },
   paid: { tone: "success", label: "Paid" },
+  overdue: { tone: "danger", label: "Overdue" },
   void: { tone: "neutral", label: "Void" },
+  // lab results
+  normal: { tone: "success", label: "Normal" },
+  abnormal: { tone: "danger", label: "Abnormal" },
+  pending: { tone: "warning", label: "Pending" },
 };
 
-export function StatusBadge({ status }: { status: string }) {
+export const ROLE_TONE: Record<string, Tone> = { patient: "info", doctor: "primary", admin: "neutral" };
+
+export function StatusBadge({ status, variant }: { status: string; variant?: BadgeVariant }) {
   const s = STATUS[status] ?? { tone: "neutral" as Tone, label: status };
   return (
-    <Badge tone={s.tone} dot>
+    <Badge tone={s.tone} variant={variant} dot>
       {s.label}
     </Badge>
   );
@@ -224,7 +268,7 @@ export function StatCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums sm:text-[28px]">{value}</p>
+          <p className="mt-2 font-display text-3xl font-normal tracking-tight tabular-nums sm:text-[2.125rem]">{value}</p>
         </div>
         {icon && <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tileTones[tone])}>{icon}</span>}
       </div>

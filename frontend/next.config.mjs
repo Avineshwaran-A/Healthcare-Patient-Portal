@@ -3,6 +3,8 @@ const BACKEND = process.env.BACKEND_URL || "http://127.0.0.1:8000";
 
 const nextConfig = {
   output: "standalone",
+  // Dev server uses its own folder so a running `next start` build is never clobbered.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: { optimizePackageImports: ["lucide-react"] },

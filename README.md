@@ -14,6 +14,11 @@ A lightweight, full-stack healthcare portal with three role-based workspaces (pa
 | Auth | Argon2id hashes, JWT in an HttpOnly + SameSite=Lax cookie, RBAC enforced in the API |
 | Tooling | Docker Compose, Pytest, Playwright |
 
+## Design and CI
+- Design system: [DESIGN.md](DESIGN.md) and the live specimen at `/design-system`. Tokens live in `frontend/src/app/globals.css`.
+- Landing and auth use GSAP + Lenis (text masks, section wipes, loader). Workspaces load none of it.
+- CI (`.github/workflows/ci.yml`): lint, typecheck, build, pytest, Playwright, Docker builds, Lighthouse budgets. CD (`cd.yml`) pushes images to GHCR; the deploy step is a stub until a target is chosen.
+
 ## Architecture
 
 It is a modular monolith. The browser only talks to the Next.js origin. Next proxies `/api/*` to FastAPI, so the session cookie stays first-party and no CORS is needed.
